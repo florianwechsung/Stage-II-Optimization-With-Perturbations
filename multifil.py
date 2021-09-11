@@ -35,6 +35,16 @@ parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 args = parser.parse_args()
 
+def set_file_logger(path):
+    from math import log10, ceil
+    digits = ceil(log10(comm.size))
+    filename, file_extension = os.path.splitext(path)
+    fileHandler = logging.FileHandler(filename + "-rank" + ("%i" % comm.rank).zfill(digits) + file_extension, mode='a')
+    formatter = logging.Formatter(fmt="%(asctime)s:%(name)s:%(levelname)s %(message)s")
+    fileHandler.setFormatter(formatter)
+    logger.addHandler(fileHandler)
+
+
 
 import os
 ci = "CI" in os.environ and os.environ['CI'].lower() in ['1', 'true']
@@ -74,6 +84,8 @@ KAPPA_WEIGHT = .1
 
 outdir = f"output/alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}/"
 os.makedirs(outdir, exist_ok=True)
+set_file_logger(outdir + "log.txt")
+
 
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma)
 
