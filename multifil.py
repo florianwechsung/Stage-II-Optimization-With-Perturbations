@@ -126,7 +126,7 @@ def cb(x):
 # We don't have a general interface in SIMSOPT for optimisation problems that
 # are not in least-squares form, so we write a little wrapper function that we
 # pass directly to scipy.optimize.minimize
-def fun(dofs):
+def fun(dofs, silent=False):
     Jf.x = dofs
     JF.x = dofs
     J = JF.J() + KAPPA_WEIGHT*sum(Jk.J() for Jk in Jkappas)
@@ -140,7 +140,8 @@ def fun(dofs):
     s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}], ||∇J||={np.linalg.norm(grad):.3e}"
     if args.nsamples > 0:
         s += f", {Jmpi.J():.3e}"
-    logger.info(s)
+    if not silent:
+        logger.info(s)
     history.append((J, jf, np.linalg.norm(grad)))
     return J, grad
 
@@ -176,7 +177,63 @@ while MAXITER-curiter > 0 and tries < 10:
     dofs = res.x
     curiter += res.nit
     tries += 1
-meanB = np.mean(bs.AbsB())
+
+
+def approx_H(x):
+    n = x.size
+    H = np.zeros((n, n))
+    x0 = x
+    eps = 1e-4
+    for i in range(n):
+        x = x0.copy()
+        x[i] += eps
+        d1 = fun(x, silent=True)[1]
+        x[i] -= 2*eps
+        d0 = fun(x, silent=True)[1]
+        H[i, :] = (d1-d0)/(2*eps)
+    H = 0.5 * (H+H.T)
+    return H
+
+
+from scipy.linalg import eigh
+x = dofs
+f, d = fun(x)
+for i in range(10):
+    H = approx_H(x)
+    D, E = eigh(H)
+    bestd = np.inf
+    bestx = None
+    # Computing the Hessian is the most expensive thing, so we can be pretty
+    # naive with the next step and just try a whole bunch of damping parameters
+    # and step sizes and then take the one with smallest gradient norm that
+    # still decreases the objective
+    for lam in [1e-5, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1]:
+        Dm = np.abs(D) + lam
+        s = E @ np.diag(1./Dm) @ E.T @ d
+        alpha = 1.
+        for j in range(5):
+            xnew = x - alpha * s
+            fnew, dnew = fun(xnew, silent=True)
+            dnormnew = np.linalg.norm(dnew)
+            foundnewbest = ""
+            if fnew < f and dnormnew < bestd:
+                bestd = dnormnew
+                bestx = xnew
+                foundnewbest = "x"
+            logger.info(f'Linesearch: lam={lam:.5f}, alpha={alpha:.4f}, J(xnew)={fnew:.15f}, |dJ(xnew)|={dnormnew:.3e}, {foundnewbest}')
+            alpha *= 0.5
+    if bestx is None:
+        logger.info(f"Stop Newton because no point with smaller function value could be found.")
+        break
+    fnew, dnew = fun(bestx)
+    dnormnew = np.linalg.norm(dnew)
+    if dnormnew >= np.linalg.norm(d):
+        logger.info(f"Stop Newton because |{dnormnew}| >= |{np.linalg.norm(d)}|.")
+        break
+    x = bestx
+    d = dnew
+    f = fnew
+    logger.info(f"J(x)={f:.15f}, |dJ(x)|={np.linalg.norm(d):.3e}")
 
 curves_to_vtk(curves_rep, outdir + "curves_opt")
 pointData = {"B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[:, :, None]}
