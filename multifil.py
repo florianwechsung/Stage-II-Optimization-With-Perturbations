@@ -72,7 +72,7 @@ KAPPA_MAX = 10.
 KAPPA_ALPHA = 1.
 KAPPA_WEIGHT = .1
 
-outdir = f"output_alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}/"
+outdir = f"output/alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}/"
 os.makedirs(outdir, exist_ok=True)
 
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma)
