@@ -209,10 +209,10 @@ for i in range(10):
     # still decreases the objective
     for lam in [1e-5, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1]:
         Dm = np.abs(D) + lam
-        s = E @ np.diag(1./Dm) @ E.T @ d
+        dx = E @ np.diag(1./Dm) @ E.T @ d
         alpha = 1.
         for j in range(5):
-            xnew = x - alpha * s
+            xnew = x - alpha * dx
             fnew, dnew = fun(xnew, silent=True)
             dnormnew = np.linalg.norm(dnew)
             foundnewbest = ""
