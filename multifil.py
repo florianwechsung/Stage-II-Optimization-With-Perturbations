@@ -82,7 +82,7 @@ KAPPA_MAX = 10.
 KAPPA_ALPHA = 1.
 KAPPA_WEIGHT = .1
 
-outdir = f"output/alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}/"
+outdir = f"output/alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
