@@ -34,6 +34,8 @@ parser.add_argument("--ig", type=int, default=0)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 args = parser.parse_args()
+if args.nsamples == 0:
+    args.sigma = 0.
 
 def set_file_logger(path):
     from math import log10, ceil
@@ -95,11 +97,13 @@ bs.set_points(s.gamma().reshape((-1, 3)))
 pointData = {"B_N": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]}
 s.to_vtk(outdir + "surf_init", extra_data=pointData)
 curves_rep = [c.curve for c in coils_fil]
+NFIL = (2*args.fil + 1)**2
+curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)//NFIL)]
 
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
-Jdist = MinimumDistance(base_curves, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
+Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
 Jf = SquaredFlux(s, bs)
 
 Jfs = [SquaredFlux(s, BiotSavart(cs)) for cs in coils_fil_pert]
