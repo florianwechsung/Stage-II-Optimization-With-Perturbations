@@ -5,7 +5,7 @@ from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.objectives.fluxobjective import SquaredFlux, FOCUSObjective
 from simsopt.geo.curve import RotatedCurve, curves_to_vtk
 from simsopt.geo.multifilament import CurveShiftedRotated, FilamentRotation
-from simsopt.field.biotsavart import BiotSavart, Current, Coil
+from simsopt.field.biotsavart import BiotSavart, Current, Coil, ScaledCurrent
 from simsopt.geo.coilcollection import coils_via_symmetries, create_equally_spaced_curves
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance
@@ -92,13 +92,13 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3):
 
     base_currents = []
     for i in range(ncoils):
-        curr = Current(1e5/NFIL)
+        curr = Current(1/NFIL)
         # since the target field is zero, one possible solution is just to set all
         # currents to 0. to avoid the minimizer finding that solution, we fix one
         # of the currents
         if i == 0:
             curr.fix_all()
-        base_currents.append(curr)
+        base_currents.append(ScaledCurrent(curr, 1e5))
 
     fil_curves = []
     fil_currents = []
