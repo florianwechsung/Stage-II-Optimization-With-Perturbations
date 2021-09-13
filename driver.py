@@ -5,9 +5,10 @@ from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance
-from objective import create_curves
+from objective import create_curves, CoshCurveLength
 from scipy.optimize import minimize
 import argparse
+import os
 import numpy as np
 from pathlib import Path
 TEST_DIR = (Path(__file__).parent / ".." / "simsopt" / "tests" / "test_files").resolve()
@@ -33,9 +34,11 @@ parser.add_argument("--fil", type=int, default=0)
 parser.add_argument("--ig", type=int, default=0)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
+parser.add_argument("--lengthbound", type=float, default=0.)
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
+
 
 def set_file_logger(path):
     from math import log10, ceil
@@ -47,23 +50,7 @@ def set_file_logger(path):
     logger.addHandler(fileHandler)
 
 
-
-import os
-ci = "CI" in os.environ and os.environ['CI'].lower() in ['1', 'true']
-
 """
-In this example we solve a FOCUS like Stage II coil optimisation problem: the
-goal is to find coils that generate a specific target normal field on a given
-surface.  In this particular case we consider a vacuum field, so the target is
-just zero.
-
-The objective is given by
-
-    J = \int |Bn| ds + alpha * (sum CurveLength) + beta * MininumDistancePenalty
-
-if alpha or beta are increased, the coils are more regular and better
-separated, but the target normal field may not be achieved as well.
-
 The target equilibrium is the QA configuration of arXiv:2108.03711.
 """
 
@@ -75,19 +62,23 @@ thetas = np.linspace(0, 1., ntheta, endpoint=False)
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
+MAXITER = 5000
 ALPHA = args.alpha
+
 MIN_DIST = 0.1
 DIST_ALPHA = 10.
-BETA = 10
-MAXITER = 50 if ci else 5000
+DIST_WEIGHT = 1
+
 KAPPA_MAX = 10.
 KAPPA_ALPHA = 1.
 KAPPA_WEIGHT = .1
 
-outdir = f"output/alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
+LENGTH_CON_ALPHA = 0.1
+LENGTH_CON_WEIGHT = 1
+
+outdir = f"output_temp/lengthbound_{args.lengthbound}_alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
-
 
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma)
 
@@ -103,6 +94,7 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
+Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
 Jf = SquaredFlux(s, bs)
 
@@ -112,9 +104,9 @@ if args.nsamples > 0:
     from objective import MPIObjective
     Jmpi = MPIObjective(Jfs, comm)
     Jmpi.J()
-    JF = FOCUSObjective([Jmpi], Jls, ALPHA, Jdist, BETA)
+    JF = FOCUSObjective([Jmpi], Jls, ALPHA, Jdist, DIST_WEIGHT)
 else:
-    JF = FOCUSObjective(Jf, Jls, ALPHA, Jdist, BETA)
+    JF = FOCUSObjective(Jf, Jls, ALPHA, Jdist, DIST_WEIGHT)
 
 Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
 
@@ -123,7 +115,7 @@ history = []
 ctr = [0]
 
 
-def cb(x):
+def cb(*args):
     ctr[0] += 1
 
 
@@ -134,14 +126,18 @@ def fun(dofs, silent=False):
     Jf.x = dofs
     JF.x = dofs
     J = JF.J() + KAPPA_WEIGHT*sum(Jk.J() for Jk in Jkappas)
-    dJ = JF.dJ()
+    dJ = JF.dJ(partials=True)
     for Jk in Jkappas:
-        dJ += KAPPA_WEIGHT * Jk.dJ()
+        dJ += KAPPA_WEIGHT * Jk.dJ(partials=True)
+    if args.lengthbound > 0:
+        J += LENGTH_CON_WEIGHT * Jlconstraint.J()
+        dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ()
     grad = dJ(JF)
     cl_string = ", ".join([f"{J.J():.3f}" for J in Jls])
+    totalcl = sum([J.J() for J in Jls])
     mean_AbsB = np.mean(bs.AbsB())
     jf = Jf.J()
-    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}], ||∇J||={np.linalg.norm(grad):.3e}"
+    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}]={totalcl:.3e}, ||∇J||={np.linalg.norm(grad):.3e}"
     if args.nsamples > 0:
         s += f", {Jmpi.J():.3e}"
     if not silent:
@@ -174,13 +170,19 @@ logger.info("""
 ################################################################################
 """)
 curiter = 0
-tries = 0
-while MAXITER-curiter > 0 and tries < 10:
+outeriter = 0
+MAXLOCALITER = MAXITER//4
+while MAXITER-curiter > 0 and outeriter < 10:
+    if outeriter > 0:
+        LENGTH_CON_WEIGHT *= 10
+        KAPPA_WEIGHT *= 10
+        JF.beta *= 10
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': MAXITER-curiter, 'maxcor': 400}, tol=1e-15, callback=cb)
-    res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': MAXITER-curiter}, tol=1e-15, callback=cb)
+    res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
+
     dofs = res.x
     curiter += res.nit
-    tries += 1
+    outeriter += 1
 
 
 def approx_H(x):
@@ -248,6 +250,7 @@ dist = Jdist.shortest_distance()
 logger.info(f"Curvatures {kappas}")
 logger.info(f"Arclengths {arclengths}")
 logger.info(f"Shortest distance {dist}")
+logger.info(f"Lengths sum({[J.J() for J in Jls]})={sum([J.J() for J in Jls])}")
 logger.info("Currents %s" % [c.current.get_value() for c in coils_fil])
 np.savetxt(outdir + "kappas.txt", kappas)
 np.savetxt(outdir + "arclengths.txt", arclengths)

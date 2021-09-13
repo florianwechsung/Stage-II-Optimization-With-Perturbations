@@ -27,6 +27,23 @@ def sum_across_comm(derivative, comm):
     return Derivative(newdict)
 
 
+class CoshCurveLength(Optimizable):
+
+    def __init__(self, Jls, threshold, alpha):
+        self.Jls = Jls
+        self.threshold = threshold
+        self.alpha = alpha
+
+    def J(self):
+        sumlen = sum([J.J() for J in self.Jls])
+        return (np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)**2
+
+    def dJ(self):
+        sumlen = sum([J.J() for J in self.Jls])
+        dsumlen = sum([J.dJ(partials=True) for J in self.Jls], start=Derivative({}))
+        return 2*self.alpha*(np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)*np.sinh(self.alpha*np.maximum(sumlen-self.threshold, 0))*dsumlen
+
+
 class MPIObjective(Optimizable):
 
     def __init__(self, Js, comm):
