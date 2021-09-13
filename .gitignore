@@ -1,0 +1,5 @@
+output/*
+output-old/*
+output_oldcurrent/*
+__pycache__/*
+.DS_Store

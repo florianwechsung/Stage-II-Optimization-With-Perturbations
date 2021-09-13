@@ -1,0 +1,18 @@
+python3 multifil_eval.py --alpha 1e-05 --ig 2 --noutsamples 128 --nsamples 0
+python3 multifil_eval.py --alpha 1e-06 --ig 7 --noutsamples 128 --nsamples 0
+python3 multifil_eval.py --alpha 1e-07 --ig 5 --noutsamples 128 --nsamples 0
+python3 multifil_eval.py --alpha 1e-08 --ig 0 --noutsamples 128 --nsamples 0
+python3 multifil_eval.py --alpha 1e-09 --ig 5 --noutsamples 128 --nsamples 0
+
+
+
+
+
+python3 multifil_eval.py --alpha 1e-05 --ig 3 --noutsamples 128 --nsamples 128
+python3 multifil_eval.py --alpha 1e-06 --ig 5 --noutsamples 128 --nsamples 128
+python3 multifil_eval.py --alpha 1e-07 --ig 7 --noutsamples 128 --nsamples 128
+python3 multifil_eval.py --alpha 1e-08 --ig 7 --noutsamples 128 --nsamples 128
+python3 multifil_eval.py --alpha 1e-09 --ig 1 --noutsamples 128 --nsamples 128
+
+
+for ig in {0..7}; do python3 multifil_eval.py --alpha 1e-05 --ig $ig --noutsamples 128 --nsamples 0; done

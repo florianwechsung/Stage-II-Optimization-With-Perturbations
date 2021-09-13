@@ -53,47 +53,19 @@ thetas = np.linspace(0, 1., ntheta, endpoint=False)
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 outdir = f"output/alpha_{args.alpha}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
+os.makedirs(outdir, exist_ok=True)
 x = np.loadtxt(outdir + "xmin.txt")
 
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
     fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma)
-print(f"IG={args.ig}")
 if args.nsamples > 0:
     print(np.max(np.linalg.norm(coils_fil[0].curve.gamma()-coils_fil_pert[0][0].curve.gamma(), axis=1)))
 bs = BiotSavart(coils_fil)
 bs.x = x
 bs.set_points(s.gamma().reshape((-1, 3)))
 print("Det", SquaredFlux(s, bs).J())
-for i in range(len(coils_fil)):
-    np.savetxt(outdir + f"/coil_{i}_dofs.txt", coils_fil[i].curve.x)
-    np.savetxt(outdir + f"/coil_{i}_current.txt", coils_fil[i].current.x)
-import sys; sys.exit()
-val_insample = 0
-for coils in coils_fil_pert:
-    bs = BiotSavart(coils)
-    bs.x = x
-    bs.set_points(s.gamma().reshape((-1, 3)))
-    val_insample += SquaredFlux(s, bs).J()/args.nsamples
 
-print("Insample", val_insample)
-import sys; sys.exit()
-
-for sigma in [i*1e-4 for i in range(1, 11)]:
-    base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
-        fil=args.fil, ig=args.ig, nsamples=args.noutsamples, stoch_seed=1, sigma=sigma)
-    val_outsample = 0
-    for coils in coils_fil_pert:
-        bs = BiotSavart(coils)
-        bs.x = x
-        bs.set_points(s.gamma().reshape((-1, 3)))
-        val_outsample += SquaredFlux(s, bs).J()/args.noutsamples
-    print(f"Outsample sigma={sigma:.1e}", val_outsample)
-
-import sys; sys.exit()
-
-coils_boozer = coils_fil_pert[0]
-curves_to_vtk([c.curve for c in coils_boozer], "/tmp/curves")
-# coils_boozer = coils_fil
+coils_boozer = coils_fil
 bs = BiotSavart(coils_boozer)
 bs.x = x
 bs_tf = BiotSavart(coils_boozer)
@@ -105,17 +77,17 @@ mpol = 8  # try increasing this to 8 or 10 for smoother surfaces
 ntor = 8  # try increasing this to 8 or 10 for smoother surfaces
 stellsym = True
 iota = 0.4
-phis = np.linspace(0, 1/nfp, 2*ntor+1, endpoint=False)
-thetas = np.linspace(0, 1/2., mpol+1, endpoint=False)
+phis = np.linspace(0, 1/(2*nfp), ntor+1, endpoint=False)
+thetas = np.linspace(0, 1., 2*mpol+1, endpoint=False)
 NFP = nfp
 
-mpol = 8
-ntor = nfp*8
-NFP = 1
-stellsym = False
-iota = 0.4
-phis = np.linspace(0, 1, 2*ntor+1, endpoint=False)
-thetas = np.linspace(0, 1, 2*mpol+1, endpoint=False)
+# mpol = 8
+# ntor = nfp*8
+# NFP = 1
+# stellsym = False
+# iota = 0.4
+# phis = np.linspace(0, 1, 2*ntor+1, endpoint=False)
+# thetas = np.linspace(0, 1, 2*mpol+1, endpoint=False)
 
 s = SurfaceXYZTensorFourier(
     mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=NFP, quadpoints_phi=phis, quadpoints_theta=thetas)
@@ -144,7 +116,6 @@ def compute_non_quasisymmetry_L2(s, bs):
     mod_B_non_QS = mod_B - mod_B_QS
     non_qs = np.mean(mod_B_non_QS**2 * n)**0.5
     qs = np.mean(mod_B_QS**2 * n)**0.5
-    print(non_qs/qs)
     return non_qs, qs
 
 
@@ -163,9 +134,10 @@ for ar_target in np.flipud(np.linspace(2, ar.J(), 10, endpoint=True)):
     #     tol=1e-10, maxiter=100, iota=res['iota'], G=res['G'])
     # print(f"After Exact : iota={res['iota']:.3f}, tf={tf.J():.3f}, area={s.area():.3f}, ||residual||={np.linalg.norm(boozer_surface_residual(s, res['iota'], res['G'], bs, derivatives=0)):.3e}")
     non_qs, qs = compute_non_quasisymmetry_L2(s, bs)
-    print(non_qs/qs)
+    print(ar_target, ";", non_qs/qs)
     s.to_vtk("/tmp/surf", extra_data={"BN": magnetic_field_on_surface(s, bs)[:, :, None]})
 
+import sys; sys.exit()
 import matplotlib.pyplot as plt
 fig = plt.figure()
 im = plt.contourf(2*np.pi*phis, 2*np.pi*thetas, magnetic_field_on_surface(s, bs).T, cmap='viridis')
