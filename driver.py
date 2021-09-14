@@ -131,7 +131,7 @@ def fun(dofs, silent=False):
         dJ += KAPPA_WEIGHT * Jk.dJ(partials=True)
     if args.lengthbound > 0:
         J += LENGTH_CON_WEIGHT * Jlconstraint.J()
-        dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ()
+        dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ(partials=True)
     grad = dJ(JF)
     cl_string = ", ".join([f"{J.J():.3f}" for J in Jls])
     totalcl = sum([J.J() for J in Jls])

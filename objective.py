@@ -1,5 +1,5 @@
 from simsopt._core.graph_optimizable import Optimizable
-from simsopt._core.derivative import Derivative
+from simsopt._core.derivative import Derivative, derivative_dec
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.objectives.fluxobjective import SquaredFlux, FOCUSObjective
@@ -30,6 +30,7 @@ def sum_across_comm(derivative, comm):
 class CoshCurveLength(Optimizable):
 
     def __init__(self, Jls, threshold, alpha):
+        Optimizable.__init__(self, x0=np.asarray([]), depends_on=Jls)
         self.Jls = Jls
         self.threshold = threshold
         self.alpha = alpha
@@ -38,6 +39,7 @@ class CoshCurveLength(Optimizable):
         sumlen = sum([J.J() for J in self.Jls])
         return (np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)**2
 
+    @derivative_dec
     def dJ(self):
         sumlen = sum([J.J() for J in self.Jls])
         dsumlen = sum([J.dJ(partials=True) for J in self.Jls], start=Derivative({}))
@@ -57,10 +59,11 @@ class MPIObjective(Optimizable):
         res = np.sum([i for o in self.comm.allgather(local_vals) for i in o])
         return res/self.n
 
+    @derivative_dec
     def dJ(self):
         if len(self.Js) == 0:
             raise NotImplementedError("This currently only works if there is at least one objective per process.")
-        local_derivs = sum([J.dJ() for J in self.Js], start=Derivative({}))
+        local_derivs = sum([J.dJ(partials=True) for J in self.Js], start=Derivative({}))
         all_derivs = sum_across_comm(local_derivs, self.comm)
         all_derivs *= 1./self.n
         return all_derivs
