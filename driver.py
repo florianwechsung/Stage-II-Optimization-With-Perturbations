@@ -10,12 +10,9 @@ from scipy.optimize import minimize
 import argparse
 import os
 import numpy as np
-from pathlib import Path
-TEST_DIR = (Path(__file__).parent / ".." / "simsopt" / "tests" / "test_files").resolve()
-filename = TEST_DIR / 'input.LandremanPaul2021_QA'
 from mpi4py import MPI
-comm = MPI.COMM_WORLD
 import logging
+comm = MPI.COMM_WORLD
 logger = logging.getLogger("SIMSOPT-STAGE2")
 handler = logging.StreamHandler()
 formatter = logging.Formatter(fmt="%(levelname)s %(message)s")
@@ -27,7 +24,6 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--alpha", type=float, default=0.)
 parser.add_argument("--fil", type=int, default=0)
@@ -35,6 +31,8 @@ parser.add_argument("--ig", type=int, default=0)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 parser.add_argument("--lengthbound", type=float, default=0.)
+parser.add_argument("--well", dest="well", default=False,
+                    action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -59,10 +57,14 @@ nphi = 64
 ntheta = 64
 phis = np.linspace(0, 1./(2*nfp), nphi, endpoint=False)
 thetas = np.linspace(0, 1., ntheta, endpoint=False)
+if args.well:
+    filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
+else:
+    filename = "input.LandremanPaul2021_QA"
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
-MAXITER = 5000
+MAXITER = 10000
 ALPHA = args.alpha
 
 MIN_DIST = 0.1
@@ -76,7 +78,7 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-outdir = f"output_temp/lengthbound_{args.lengthbound}_alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
@@ -85,7 +87,7 @@ base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.f
 bs = BiotSavart(coils_fil)
 bs.set_points(s.gamma().reshape((-1, 3)))
 
-pointData = {"B_N": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]}
+pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
 s.to_vtk(outdir + "surf_init", extra_data=pointData)
 curves_rep = [c.curve for c in coils_fil]
 NFIL = (2*args.fil + 1)**2
@@ -171,7 +173,7 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-MAXLOCALITER = MAXITER//4
+MAXLOCALITER = MAXITER//5
 while MAXITER-curiter > 0 and outeriter < 10:
     if outeriter > 0:
         LENGTH_CON_WEIGHT *= 10
@@ -204,7 +206,7 @@ def approx_H(x):
 from scipy.linalg import eigh
 x = dofs
 f, d = fun(x)
-for i in range(10):
+for i in range(5):
     H = approx_H(x)
     D, E = eigh(H)
     bestd = np.inf
@@ -242,7 +244,7 @@ for i in range(10):
     logger.info(f"J(x)={f:.15f}, |dJ(x)|={np.linalg.norm(d):.3e}")
 
 curves_to_vtk(curves_rep, outdir + "curves_opt")
-pointData = {"B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[:, :, None]}
+pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
 s.to_vtk(outdir + "surf_opt", extra_data=pointData)
 kappas = [np.max(c.kappa()) for c in base_curves]
 arclengths = [np.min(c.incremental_arclength()) for c in base_curves]
