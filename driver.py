@@ -30,9 +30,9 @@ parser.add_argument("--fil", type=int, default=0)
 parser.add_argument("--ig", type=int, default=0)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
-parser.add_argument("--lengthbound", type=float, default=0.)
-parser.add_argument("--mindist", type=float, default=0.1)
-parser.add_argument("--maxkappa", type=float, default=10.0)
+parser.add_argument("--lengthbound", type=float, default=18.)
+parser.add_argument("--mindist", type=float, default=0.10)
+parser.add_argument("--maxkappa", type=float, default=7.0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
 args = parser.parse_args()
@@ -198,6 +198,7 @@ while MAXITER-curiter > 0 and outeriter < 10:
     dofs = res.x
     curiter += res.nit
     outeriter += 1
+    curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
 
 
 def approx_H(x):
