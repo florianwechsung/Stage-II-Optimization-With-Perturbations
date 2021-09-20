@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
-from simsopt.objectives.fluxobjective import SquaredFlux, FOCUSObjective
+from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
@@ -33,8 +33,8 @@ parser.add_argument("--sigma", type=float, default=0.001)
 parser.add_argument("--lengthbound", type=float, default=0.)
 parser.add_argument("--mindist", type=float, default=0.1)
 parser.add_argument("--maxkappa", type=float, default=10.0)
-parser.add_argument("--well", dest="well", default=False,
-                    action="store_true")
+parser.add_argument("--well", dest="well", default=False, action="store_true")
+parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -80,11 +80,11 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
-base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma)
+base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma, zero_mean=args.zeromean)
 
 bs = BiotSavart(coils_fil)
 bs.set_points(s.gamma().reshape((-1, 3)))
@@ -108,9 +108,9 @@ if args.nsamples > 0:
     from objective import MPIObjective
     Jmpi = MPIObjective(Jfs, comm)
     Jmpi.J()
-    JF = FOCUSObjective([Jmpi], Jls, ALPHA, Jdist, DIST_WEIGHT)
+    JF = CoilOptObjective([Jmpi], Jls, ALPHA, Jdist, DIST_WEIGHT)
 else:
-    JF = FOCUSObjective(Jf, Jls, ALPHA, Jdist, DIST_WEIGHT)
+    JF = CoilOptObjective(Jf, Jls, ALPHA, Jdist, DIST_WEIGHT)
 
 Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
 
@@ -159,6 +159,13 @@ logger.info("""
 """)
 f = fun
 dofs = JF.x
+f(dofs)
+# import time
+# import cProfile
+# pr = cProfile.Profile()
+# pr.enable()
+# t1 = time.time()
+
 np.random.seed(1)
 h = np.random.uniform(size=dofs.shape)
 J0, dJ0 = f(dofs)
@@ -167,7 +174,11 @@ for eps in [1e-3, 1e-4, 1e-5, 1e-6, 1e-7]:
     J1, _ = f(dofs + eps*h)
     J2, _ = f(dofs - eps*h)
     logger.info(f"err {(J1-J2)/(2*eps) - dJh}")
-
+# t2 = time.time()
+# print("Time", t2-t1)
+# pr.disable()
+# pr.dump_stats('profile.stat')
+# import sys; sys.exit()
 logger.info("""
 ################################################################################
 ### Run the optimisation #######################################################

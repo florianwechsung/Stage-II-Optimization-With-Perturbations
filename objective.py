@@ -2,11 +2,12 @@ from simsopt._core.graph_optimizable import Optimizable
 from simsopt._core.derivative import Derivative, derivative_dec
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
-from simsopt.objectives.fluxobjective import SquaredFlux, FOCUSObjective
+from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import RotatedCurve, curves_to_vtk
 from simsopt.geo.multifilament import CurveShiftedRotated, FilamentRotation
-from simsopt.field.biotsavart import BiotSavart, Current, Coil, ScaledCurrent
-from simsopt.geo.coilcollection import coils_via_symmetries, create_equally_spaced_curves
+from simsopt.field.biotsavart import BiotSavart
+from simsopt.field.coil import Current, Coil, ScaledCurrent, coils_via_symmetries
+from simsopt.geo.curve import create_equally_spaced_curves
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance
 from simsopt.geo.curveperturbed import GaussianSampler, CurvePerturbed
@@ -69,16 +70,16 @@ class MPIObjective(Optimizable):
         return all_derivs
 
 
-def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3):
+def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False):
     ncoils = 4
     R0 = 1.0
     R1 = 0.5
     order = 10
     PPP = 15
     GAUSS_SIGMA_SYS = sigma
-    GAUSS_LEN_SYS = 0.3
+    GAUSS_LEN_SYS = 0.25
     GAUSS_SIGMA_STA = sigma
-    GAUSS_LEN_STA = 0.6
+    GAUSS_LEN_STA = 0.5
     nfp = 2
 
     h = 0.02
@@ -87,14 +88,14 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3):
     def create_multifil(c):
         if fil == 0:
             return [c]
-        rotation = FilamentRotation(order)
+        rotation = FilamentRotation(c.quadpoints, order)
         cs = []
         for i in range(-fil, fil+1):
             for j in range(-fil, fil+1):
                 cs.append(CurveShiftedRotated(c, i*h, j*h, rotation))
         return cs
 
-    base_curves = create_equally_spaced_curves(ncoils, nfp, stellsym=True, R0=R0, R1=R1, order=order, PPP=PPP)
+    base_curves = create_equally_spaced_curves(ncoils, nfp, stellsym=True, R0=R0, R1=R1, order=order, numquadpoints=PPP*order)
 
     sampler_systematic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_SYS, GAUSS_LEN_SYS, n_derivs=1)
     sampler_statistic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_STA, GAUSS_LEN_STA, n_derivs=1)
@@ -139,7 +140,7 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3):
         for i in range(ncoils):
             for k in range(NFIL):
                 rg = np.random.Generator(PCG64(seeds_sys[j*ncoils + i]))
-                base_curves_perturbed.append(CurvePerturbed(fil_curves[i*NFIL+k], sampler_systematic, randomgen=rg))
+                base_curves_perturbed.append(CurvePerturbed(fil_curves[i*NFIL+k], sampler_systematic, randomgen=rg, zero_mean=zero_mean))
         coils_perturbed_rep = coils_via_symmetries(base_curves_perturbed, fil_currents, nfp, True)
 
         for i in range(nfp * ncoils * 2):
@@ -147,7 +148,7 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3):
                 rg = np.random.Generator(PCG64(seeds_sta[j*nfp*ncoils*2 + i]))
                 c = coils_perturbed_rep[i*NFIL + k]
                 coils_perturbed_rep[i*NFIL + k] = Coil(
-                    CurvePerturbed(c.curve, sampler_statistic, randomgen=rg), c.current)
+                    CurvePerturbed(c.curve, sampler_statistic, randomgen=rg, zero_mean=zero_mean), c.current)
         # full_curves_perturbed = [c.curve for c in coils_perturbed_rep]
         # curves_to_vtk(fil_curves, "/tmp/fil_curves")
         # curves_to_vtk(base_curves_perturbed, f"/tmp/base_curves_perturbed_{j}")
