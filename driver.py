@@ -31,6 +31,8 @@ parser.add_argument("--ig", type=int, default=0)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 parser.add_argument("--lengthbound", type=float, default=0.)
+parser.add_argument("--mindist", type=float, default=0.1)
+parser.add_argument("--maxkappa", type=float, default=10.0)
 parser.add_argument("--well", dest="well", default=False,
                     action="store_true")
 args = parser.parse_args()
@@ -67,18 +69,18 @@ s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_t
 MAXITER = 10000
 ALPHA = args.alpha
 
-MIN_DIST = 0.1
+MIN_DIST = args.mindist
 DIST_ALPHA = 10.
 DIST_WEIGHT = 1
 
-KAPPA_MAX = 10.
+KAPPA_MAX = args.maxkappa
 KAPPA_ALPHA = 1.
 KAPPA_WEIGHT = .1
 
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_alpha_{ALPHA}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
