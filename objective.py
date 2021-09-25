@@ -8,9 +8,7 @@ from simsopt.geo.multifilament import CurveShiftedRotated, FilamentRotation
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.field.coil import Current, Coil, ScaledCurrent, coils_via_symmetries
 from simsopt.geo.curve import create_equally_spaced_curves
-from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
-from simsopt.geo.curveobjectives import MinimumDistance
-from simsopt.geo.curveperturbed import GaussianSampler, CurvePerturbed
+from simsopt.geo.curveperturbed import GaussianSampler, CurvePerturbed, PerturbationSample
 from simsopt.field.tracing import parallel_loop_bounds
 from randomgen import SeedSequence, PCG64
 from mpi4py import MPI
@@ -96,6 +94,8 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
         return cs
 
     base_curves = create_equally_spaced_curves(ncoils, nfp, stellsym=True, R0=R0, R1=R1, order=order, numquadpoints=PPP*order)
+    # for c in base_curves:
+    #     c.fix("zc(0)")
 
     sampler_systematic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_SYS, GAUSS_LEN_SYS, n_derivs=1)
     sampler_statistic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_STA, GAUSS_LEN_STA, n_derivs=1)
@@ -113,13 +113,13 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     base_currents = []
     for i in range(ncoils):
-        curr = Current(1/NFIL)
+        curr = Current(1.)
         # since the target field is zero, one possible solution is just to set all
         # currents to 0. to avoid the minimizer finding that solution, we fix one
         # of the currents
         if i == 0:
             curr.fix_all()
-        base_currents.append(ScaledCurrent(curr, 1e5))
+        base_currents.append(ScaledCurrent(curr, 1e5/NFIL))
 
     fil_curves = []
     fil_currents = []
@@ -130,25 +130,29 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     coils_fil = coils_via_symmetries(fil_curves, fil_currents, nfp, True)
 
-    seeds_sys = SeedSequence(stoch_seed).spawn(ncoils * nsamples)
-    seeds_sta = SeedSequence(999+stoch_seed).spawn(nfp * ncoils * 2 * nsamples)
+    seeds_sys = SeedSequence(stoch_seed).spawn(nsamples)
+    seeds_sta = SeedSequence(99999+stoch_seed).spawn(nsamples)
     # Jfs = []
 
     coils_fil_pert = []
     for j in range(*parallel_loop_bounds(comm, nsamples)):
         base_curves_perturbed = []
+        rg = np.random.Generator(PCG64(seeds_sys[j]))
         for i in range(ncoils):
+            pert = PerturbationSample(sampler_systematic, randomgen=rg)
             for k in range(NFIL):
-                rg = np.random.Generator(PCG64(seeds_sys[j*ncoils + i]))
-                base_curves_perturbed.append(CurvePerturbed(fil_curves[i*NFIL+k], sampler_systematic, randomgen=rg, zero_mean=zero_mean))
+                base_curves_perturbed.append(
+                    CurvePerturbed(fil_curves[i*NFIL+k], pert, zero_mean=zero_mean))
+
         coils_perturbed_rep = coils_via_symmetries(base_curves_perturbed, fil_currents, nfp, True)
 
+        rg = np.random.Generator(PCG64(seeds_sta[j]))
         for i in range(nfp * ncoils * 2):
+            pert = PerturbationSample(sampler_statistic, randomgen=rg)
             for k in range(NFIL):
-                rg = np.random.Generator(PCG64(seeds_sta[j*nfp*ncoils*2 + i]))
                 c = coils_perturbed_rep[i*NFIL + k]
                 coils_perturbed_rep[i*NFIL + k] = Coil(
-                    CurvePerturbed(c.curve, sampler_statistic, randomgen=rg, zero_mean=zero_mean), c.current)
+                    CurvePerturbed(c.curve, pert, zero_mean=zero_mean), c.current)
         # full_curves_perturbed = [c.curve for c in coils_perturbed_rep]
         # curves_to_vtk(fil_curves, "/tmp/fil_curves")
         # curves_to_vtk(base_curves_perturbed, f"/tmp/base_curves_perturbed_{j}")
