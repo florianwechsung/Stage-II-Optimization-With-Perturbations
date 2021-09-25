@@ -170,10 +170,13 @@ np.random.seed(1)
 h = np.random.uniform(size=dofs.shape)
 J0, dJ0 = f(dofs)
 dJh = sum(dJ0 * h)
-for eps in [1e-3, 1e-4, 1e-5, 1e-6, 1e-7]:
-    J1, _ = f(dofs + eps*h)
-    J2, _ = f(dofs - eps*h)
-    logger.info(f"err {(J1-J2)/(2*eps) - dJh}")
+for eps in [1e-3, 1e-4, 1e-5]:
+    Jpp, _ = f(dofs + 2*eps*h)
+    Jp, _ = f(dofs + eps*h)
+    Jm, _ = f(dofs - eps*h)
+    Jmm, _ = f(dofs - 2*eps*h)
+    # logger.info(f"err {, (Jp-Jm)/(2*eps) - dJh}")
+    logger.info(f"err {((1/12)*Jmm - (2/3)*Jm + (2/3)*Jp - (1/12)*Jpp)/(eps) - dJh}")
 # t2 = time.time()
 # print("Time", t2-t1)
 # pr.disable()
@@ -186,12 +189,12 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-MAXLOCALITER = MAXITER//5
+MAXLOCALITER = MAXITER//10
 while MAXITER-curiter > 0 and outeriter < 10:
     if outeriter > 0:
-        LENGTH_CON_WEIGHT *= 10
-        KAPPA_WEIGHT *= 10
-        JF.beta *= 10
+        LENGTH_CON_WEIGHT *= 10**0.5
+        KAPPA_WEIGHT *= 10**0.5
+        JF.beta *= 10**0.5
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': MAXITER-curiter, 'maxcor': 400}, tol=1e-15, callback=cb)
     res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
