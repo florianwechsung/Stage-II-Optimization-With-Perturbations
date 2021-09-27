@@ -66,7 +66,7 @@ else:
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
-MAXITER = 10000
+MAXITER = 15000
 ALPHA = args.alpha
 
 MIN_DIST = args.mindist
@@ -74,7 +74,7 @@ DIST_ALPHA = 10.
 DIST_WEIGHT = 1
 
 KAPPA_MAX = args.maxkappa
-KAPPA_ALPHA = 1.
+KAPPA_ALPHA = 0.1
 KAPPA_WEIGHT = .1
 
 LENGTH_CON_ALPHA = 0.1
@@ -123,6 +123,7 @@ def cb(*args):
     ctr[0] += 1
 
 
+lastgrad = [None]
 # We don't have a general interface in SIMSOPT for optimisation problems that
 # are not in least-squares form, so we write a little wrapper function that we
 # pass directly to scipy.optimize.minimize
@@ -141,12 +142,19 @@ def fun(dofs, silent=False):
     totalcl = sum([J.J() for J in Jls])
     mean_AbsB = np.mean(bs.AbsB())
     jf = Jf.J()
-    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}]={totalcl:.3e}, ||∇J||={np.linalg.norm(grad):.3e}"
+    kappas = [np.max(c.kappa()) for c in base_curves]
+    kappa_string = ", ".join([f"{k:.3f}" for k in kappas])
+    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}]={totalcl:.3e}, kappas=[{kappa_string}], ||∇J||={np.linalg.norm(grad):.3e}"
     if args.nsamples > 0:
         s += f", {Jmpi.J():.3e}"
     if not silent:
         logger.info(s)
     history.append((J, jf, np.linalg.norm(grad)))
+    if J > 1.:
+        J = 1.
+        grad = -lastgrad[0]
+    else:
+        lastgrad[0] = grad
     return J, grad
 
 
@@ -189,26 +197,29 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-MAXLOCALITER = MAXITER//10
-while MAXITER-curiter > 0 and outeriter < 10:
-    if outeriter > 0:
-        LENGTH_CON_WEIGHT *= 10**0.5
-        KAPPA_WEIGHT *= 10**0.5
-        JF.beta *= 10**0.5
-    # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': MAXITER-curiter, 'maxcor': 400}, tol=1e-15, callback=cb)
-    res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
+PENINCREASES = 15
+MAXLOCALITER = MAXITER//PENINCREASES
+while MAXITER-curiter > 0 and outeriter < 20:
+    if outeriter > 0 and outeriter < PENINCREASES:
+        logger.info("Increase weights")
+        LENGTH_CON_WEIGHT *= 2.
+        KAPPA_WEIGHT *= 2.
+        JF.beta *= 2.
+    # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
+    # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
+    res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
+    logger.info("%s" % res)
     dofs = res.x
-    curiter += res.nit
+    curiter += res.nfev
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
 
 
-def approx_H(x):
+def approx_H(x, eps=1e-4):
     n = x.size
     H = np.zeros((n, n))
     x0 = x
-    eps = 1e-4
     for i in range(n):
         x = x0.copy()
         x[i] += eps
@@ -223,9 +234,15 @@ def approx_H(x):
 from scipy.linalg import eigh
 x = dofs
 f, d = fun(x)
+eps = 1e-4
 for i in range(5):
-    H = approx_H(x)
-    D, E = eigh(H)
+    try:
+        H = approx_H(x, eps=eps)
+        D, E = eigh(H)
+    except:
+        logger.info(f"Newton iteration {i} failed, decrease eps")
+        eps *= 0.1
+        continue
     bestd = np.inf
     bestx = None
     # Computing the Hessian is the most expensive thing, so we can be pretty
@@ -259,6 +276,8 @@ for i in range(5):
     d = dnew
     f = fnew
     logger.info(f"J(x)={f:.15f}, |dJ(x)|={np.linalg.norm(d):.3e}")
+
+fun(x)
 
 curves_to_vtk(curves_rep, outdir + "curves_opt")
 pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
