@@ -4,8 +4,8 @@ from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
-from simsopt.geo.curveobjectives import MinimumDistance
-from objective import create_curves, CoshCurveLength
+from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
+from objective import create_curves, CoshCurveLength, QuadraticCurveLength
 from scipy.optimize import minimize
 import argparse
 import os
@@ -80,7 +80,7 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
+outdir = f"output-quad/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
@@ -98,8 +98,17 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
-Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
-Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
+# Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
+# Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
+# Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
+
+Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
+Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=0.1*DIST_ALPHA)
+KAPPA_WEIGHT = 1e-7
+DIST_WEIGHT = 0.01
+LENGTH_CON_WEIGHT = 0.01
+Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
+
 Jf = SquaredFlux(s, bs)
 
 Jfs = [SquaredFlux(s, BiotSavart(cs)) for cs in coils_fil_pert]
@@ -112,7 +121,6 @@ if args.nsamples > 0:
 else:
     JF = CoilOptObjective(Jf, Jls, ALPHA, Jdist, DIST_WEIGHT)
 
-Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
 
 
 history = []
@@ -144,7 +152,8 @@ def fun(dofs, silent=False):
     jf = Jf.J()
     kappas = [np.max(c.kappa()) for c in base_curves]
     kappa_string = ", ".join([f"{k:.3f}" for k in kappas])
-    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}]={totalcl:.3e}, kappas=[{kappa_string}], ||∇J||={np.linalg.norm(grad):.3e}"
+    dist = Jdist.shortest_distance()
+    s = f"{ctr[0]}, J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}]={totalcl:.3e}, kappas=[{kappa_string}], dist={dist:.3e}, ||∇J||={np.linalg.norm(grad):.3e}"
     if args.nsamples > 0:
         s += f", {Jmpi.J():.3e}"
     if not silent:

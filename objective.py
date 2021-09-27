@@ -45,6 +45,25 @@ class CoshCurveLength(Optimizable):
         return 2*self.alpha*(np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)*np.sinh(self.alpha*np.maximum(sumlen-self.threshold, 0))*dsumlen
 
 
+class QuadraticCurveLength(Optimizable):
+
+    def __init__(self, Jls, threshold, alpha):
+        Optimizable.__init__(self, x0=np.asarray([]), depends_on=Jls)
+        self.Jls = Jls
+        self.threshold = threshold
+        self.alpha = alpha
+
+    def J(self):
+        sumlen = sum([J.J() for J in self.Jls])
+        return (self.alpha*np.maximum(sumlen-self.threshold, 0))**2
+
+    @derivative_dec
+    def dJ(self):
+        sumlen = sum([J.J() for J in self.Jls])
+        dsumlen = sum([J.dJ(partials=True) for J in self.Jls], start=Derivative({}))
+        return 2*self.alpha*self.alpha*np.maximum(sumlen-self.threshold, 0)*dsumlen
+
+
 class MPIObjective(Optimizable):
 
     def __init__(self, Js, comm):
