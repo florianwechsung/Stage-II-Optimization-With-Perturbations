@@ -97,7 +97,9 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
-# Jls = [CurveLength(c) for c in base_curves]
+Jls = [CurveLength(c) for c in base_curves]
+
+
 # Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
 # Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
 # Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
