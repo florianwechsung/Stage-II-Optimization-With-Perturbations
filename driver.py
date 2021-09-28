@@ -66,7 +66,7 @@ else:
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
-MAXITER = 15000
+MAXITER = 12500
 ALPHA = args.alpha
 
 MIN_DIST = args.mindist
@@ -97,7 +97,7 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
-Jls = [CurveLength(c) for c in base_curves]
+# Jls = [CurveLength(c) for c in base_curves]
 # Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
 # Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
 # Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
@@ -106,7 +106,7 @@ Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=0.1*DIST_ALPHA)
 KAPPA_WEIGHT = 1e-7
 DIST_WEIGHT = 0.01
-LENGTH_CON_WEIGHT = 0.01
+LENGTH_CON_WEIGHT = 0.01 if args.lengthbound <= 20 else 0.001
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
 
 Jf = SquaredFlux(s, bs)
@@ -206,14 +206,19 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-PENINCREASES = 15
+PENINCREASES = 5
 MAXLOCALITER = MAXITER//PENINCREASES
-while MAXITER-curiter > 0 and outeriter < 20:
+while MAXITER-curiter > 0 and outeriter < 10:
     if outeriter > 0 and outeriter < PENINCREASES:
-        logger.info("Increase weights")
-        LENGTH_CON_WEIGHT *= 2.
-        KAPPA_WEIGHT *= 2.
-        JF.beta *= 2.
+        if max([np.max(c.kappa()) for c in base_curves]) > (1+1e-3)*KAPPA_MAX:
+            logger.info("Increase weight for kappa")
+            KAPPA_WEIGHT *= 10.
+        if sum([J.J() for J in Jls]) > (1+1e-3)*args.lengthbound:
+            logger.info("Increase weight for length")
+            LENGTH_CON_WEIGHT *= 10.
+        if Jdist.shortest_distance() < (1-1e-3)*MIN_DIST:
+            logger.info("Increase weight for distance")
+            JF.beta *= 10.
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
     # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
