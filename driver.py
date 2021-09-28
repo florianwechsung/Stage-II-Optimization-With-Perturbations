@@ -108,7 +108,7 @@ Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=0.1*DIST_ALPHA)
 KAPPA_WEIGHT = 1e-7
 DIST_WEIGHT = 0.01
-LENGTH_CON_WEIGHT = 0.01 if args.lengthbound <= 20 else 0.001
+LENGTH_CON_WEIGHT = 0.01
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
 
 Jf = SquaredFlux(s, bs)
