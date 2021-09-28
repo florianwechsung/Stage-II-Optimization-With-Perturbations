@@ -66,7 +66,7 @@ else:
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
-MAXITER = 12500
+MAXITER = 15000
 ALPHA = args.alpha
 
 MIN_DIST = args.mindist
@@ -107,7 +107,7 @@ Jls = [CurveLength(c) for c in base_curves]
 Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=1.)
 KAPPA_WEIGHT = 1e-7
-DIST_WEIGHT = 0.1
+DIST_WEIGHT = 1000.
 LENGTH_CON_WEIGHT = 0.01
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
 
@@ -228,6 +228,8 @@ while MAXITER-curiter > 0 and outeriter < 10:
     logger.info("%s" % res)
     dofs = res.x
     curiter += res.nfev
+    if outeriter == 0:
+        JF.beta *= 0.001
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
 
