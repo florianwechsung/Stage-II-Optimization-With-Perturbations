@@ -5,7 +5,7 @@ from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
-from objective import create_curves, CoshCurveLength, QuadraticCurveLength
+from objective import create_curves, CoshCurveLength, QuadraticCurveLength, UniformArclength
 from scipy.optimize import minimize
 import argparse
 import os
@@ -28,6 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--alpha", type=float, default=0.)
 parser.add_argument("--fil", type=int, default=0)
 parser.add_argument("--ig", type=int, default=0)
+parser.add_argument("--order", type=int, default=12)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 parser.add_argument("--lengthbound", type=float, default=18.)
@@ -80,11 +81,13 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-outdir = f"output-quad/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
+ALEN_WEIGHT = 1e-4
+
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
-base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma, zero_mean=args.zeromean)
+base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(fil=args.fil, ig=args.ig, nsamples=args.nsamples, stoch_seed=0, sigma=args.sigma, zero_mean=args.zeromean, order=args.order)
 
 bs = BiotSavart(coils_fil)
 bs.set_points(s.gamma().reshape((-1, 3)))
@@ -98,6 +101,7 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
+Jals = [UniformArclength(c) for c in base_curves]
 
 
 # Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
@@ -140,13 +144,19 @@ lastgrad = [None]
 def fun(dofs, silent=False):
     Jf.x = dofs
     JF.x = dofs
-    J = JF.J() + KAPPA_WEIGHT*sum(Jk.J() for Jk in Jkappas)
+    J = JF.J()
     dJ = JF.dJ(partials=True)
     for Jk in Jkappas:
+        J += KAPPA_WEIGHT * Jk.J()
         dJ += KAPPA_WEIGHT * Jk.dJ(partials=True)
-    if args.lengthbound > 0:
-        J += LENGTH_CON_WEIGHT * Jlconstraint.J()
-        dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ(partials=True)
+    if ALEN_WEIGHT > 0:
+        for Jal in Jals:
+            J += ALEN_WEIGHT * Jal.J()
+            dJ += ALEN_WEIGHT * Jal.dJ(partials=True)
+    if LENGTH_CON_WEIGHT > 0:
+        if args.lengthbound > 0:
+            J += LENGTH_CON_WEIGHT * Jlconstraint.J()
+            dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ(partials=True)
     grad = dJ(JF)
     cl_string = ", ".join([f"{J.J():.3f}" for J in Jls])
     totalcl = sum([J.J() for J in Jls])
@@ -210,8 +220,11 @@ curiter = 0
 outeriter = 0
 PENINCREASES = 5
 MAXLOCALITER = MAXITER//PENINCREASES
+CURPENINCREASES = 0
+
 while MAXITER-curiter > 0 and outeriter < 10:
-    if outeriter > 0 and outeriter < PENINCREASES:
+    if outeriter > 0 and CURPENINCREASES < PENINCREASES and last_run_success:
+        CURPENINCREASES += 1
         if max([np.max(c.kappa()) for c in base_curves]) > (1+1e-3)*KAPPA_MAX:
             logger.info("Increase weight for kappa")
             KAPPA_WEIGHT *= 10.
@@ -221,10 +234,16 @@ while MAXITER-curiter > 0 and outeriter < 10:
         if Jdist.shortest_distance() < (1-1e-3)*MIN_DIST:
             logger.info("Increase weight for distance")
             JF.beta *= 10.
+        if sum([np.sqrt(J.J()) for J in Jals]) < 1e-3:
+            logger.info("Increase weight for arclength")
+            ALEN_WEIGHT *= 10.
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
     # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
     res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
+    last_run_success  = np.linalg.norm(res.jac) < 1e-4 # only increase weights if the last run was a success
+    if not last_run_success:
+        logger.info("last run not succesfull, not increasing weights")
     logger.info("%s" % res)
     dofs = res.x
     curiter += res.nfev

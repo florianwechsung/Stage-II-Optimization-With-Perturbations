@@ -1,5 +1,6 @@
 from simsopt._core.graph_optimizable import Optimizable
 from simsopt._core.derivative import Derivative, derivative_dec
+from simsopt.geo.jit import jit
 import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
@@ -11,6 +12,8 @@ from simsopt.geo.curve import create_equally_spaced_curves
 from simsopt.geo.curveperturbed import GaussianSampler, CurvePerturbed, PerturbationSample
 from simsopt.field.tracing import parallel_loop_bounds
 from randomgen import SeedSequence, PCG64
+import jax.numpy as jnp
+from jax import grad, vjp
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 
@@ -64,6 +67,36 @@ class QuadraticCurveLength(Optimizable):
         return 2*self.alpha*self.alpha*np.maximum(sumlen-self.threshold, 0)*dsumlen
 
 
+@jit
+def curve_arclengthvariation_pure(l, indices):
+    """
+    This function is used in a Python+Jax implementation of the curve arclength variation.
+    """
+    return jnp.var(l[indices])
+
+
+class UniformArclength():
+
+    def __init__(self, curve):
+        self.curve = curve
+        nquadpoints = len(curve.quadpoints)
+        nquadpoints_constraint = curve.full_dof_size//3 - 1
+        indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint, endpoint=False)).astype(int)
+        self.indices = indices
+        self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, indices))(l))
+
+    def J(self):
+        return curve_arclengthvariation_pure(self.curve.incremental_arclength(), self.indices)
+
+    @derivative_dec
+    def dJ(self):
+        """
+        This returns the derivative of the quantity with respect to the curve dofs.
+        """
+        return self.curve.dincremental_arclength_by_dcoeff_vjp(
+            self.thisgrad(self.curve.incremental_arclength()))
+
+
 class MPIObjective(Optimizable):
 
     def __init__(self, Js, comm):
@@ -87,11 +120,11 @@ class MPIObjective(Optimizable):
         return all_derivs
 
 
-def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False):
+def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12):
     ncoils = 4
     R0 = 1.0
     R1 = 0.5
-    order = 10
+    order = order
     PPP = 15
     GAUSS_SIGMA_SYS = sigma
     GAUSS_LEN_SYS = 0.25
