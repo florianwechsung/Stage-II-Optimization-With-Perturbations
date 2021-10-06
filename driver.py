@@ -67,7 +67,7 @@ s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_t
 
 
 MAXITER = 15000
-ALPHA = 1e-7
+ALPHA = 1e-5
 
 MIN_DIST = args.mindist
 DIST_ALPHA = 10.
@@ -248,8 +248,7 @@ while MAXITER-curiter > 0 and outeriter < 10:
     curiter += res.nfev
     if outeriter == 0:
         JF.beta *= 0.001
-    if outeriter == 0:
-        JF.alpha *= 0.01
+    JF.alpha *= 0.01
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
 
