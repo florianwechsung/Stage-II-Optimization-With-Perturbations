@@ -220,7 +220,14 @@ outeriter = 0
 PENINCREASES = 5
 MAXLOCALITER = MAXITER//PENINCREASES
 CURPENINCREASES = 0
-
+for c in base_curves:
+    for i in range(8, args.order+1):
+        c.fix(f'xc({i})')
+        c.fix(f'xs({i})')
+        c.fix(f'yc({i})')
+        c.fix(f'ys({i})')
+        c.fix(f'zc({i})')
+        c.fix(f'zs({i})')
 while MAXITER-curiter > 0 and outeriter < 10:
     if outeriter > 0 and CURPENINCREASES < PENINCREASES and last_run_success:
         CURPENINCREASES += 1
@@ -251,6 +258,14 @@ while MAXITER-curiter > 0 and outeriter < 10:
     JF.alpha *= 0.01
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
+    for c in base_curves:
+        for i in range(8, args.order+1):
+            c.unfix(f'xc({i})')
+            c.unfix(f'xs({i})')
+            c.unfix(f'yc({i})')
+            c.unfix(f'ys({i})')
+            c.unfix(f'zc({i})')
+            c.unfix(f'zs({i})')
 
 
 def approx_H(x, eps=1e-4):
