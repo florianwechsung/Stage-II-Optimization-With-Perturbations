@@ -81,7 +81,7 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-ALEN_WEIGHT = 1e-4
+ALEN_WEIGHT = 1e-7
 
 outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
 os.makedirs(outdir, exist_ok=True)
