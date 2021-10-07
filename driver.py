@@ -109,7 +109,7 @@ Jals = [UniformArclength(c) for c in base_curves]
 
 Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=1.)
-KAPPA_WEIGHT = 1e-7
+KAPPA_WEIGHT = 1e-5
 DIST_WEIGHT = 10000.
 LENGTH_CON_WEIGHT = 0.01
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
@@ -175,7 +175,7 @@ def fun(dofs, silent=False):
         grad = -lastgrad[0]
     else:
         lastgrad[0] = grad
-    return J, grad
+    return 1e-3 * J, 1e-3 * grad
 
 
 logger.info(f"Curvatures {[np.max(c.kappa()) for c in base_curves]}")
@@ -210,6 +210,7 @@ for eps in [1e-3, 1e-4, 1e-5]:
 # pr.disable()
 # pr.dump_stats('profile.stat')
 # import sys; sys.exit()
+f(dofs)
 logger.info("""
 ################################################################################
 ### Run the optimisation #######################################################
@@ -217,36 +218,37 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-PENINCREASES = 5
+PENINCREASES = 10
 MAXLOCALITER = MAXITER//PENINCREASES
 CURPENINCREASES = 0
-for c in base_curves:
-    for i in range(8, args.order+1):
-        c.fix(f'xc({i})')
-        c.fix(f'xs({i})')
-        c.fix(f'yc({i})')
-        c.fix(f'ys({i})')
-        c.fix(f'zc({i})')
-        c.fix(f'zs({i})')
+# for c in base_curves:
+#     for i in range(8, args.order+1):
+#         c.fix(f'xc({i})')
+#         c.fix(f'xs({i})')
+#         c.fix(f'yc({i})')
+#         c.fix(f'ys({i})')
+#         c.fix(f'zc({i})')
+#         c.fix(f'zs({i})')
 while MAXITER-curiter > 0 and outeriter < 10:
+    # dofs = JF.x
     if outeriter > 0 and CURPENINCREASES < PENINCREASES and last_run_success:
         CURPENINCREASES += 1
         if max([np.max(c.kappa()) for c in base_curves]) > (1+1e-3)*KAPPA_MAX:
             logger.info("Increase weight for kappa")
-            KAPPA_WEIGHT *= 10.
+            KAPPA_WEIGHT *= 3.
         if sum([J.J() for J in Jls]) > (1+1e-3)*args.lengthbound:
             logger.info("Increase weight for length")
-            LENGTH_CON_WEIGHT *= 10.
+            LENGTH_CON_WEIGHT *= 3.
         if Jdist.shortest_distance() < (1-1e-3)*MIN_DIST:
             logger.info("Increase weight for distance")
-            JF.beta *= 10.
+            JF.beta *= 3.
         if sum([np.sqrt(J.J()) for J in Jals]) > 1e-3:
             logger.info("Increase weight for arclength")
-            ALEN_WEIGHT *= 10.
+            ALEN_WEIGHT *= 3.
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
     # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
-    res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
+    res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 200, 'maxls': 40}, tol=0., callback=cb)
     last_run_success  = np.linalg.norm(res.jac) < 1e-4 # only increase weights if the last run was a success
     if not last_run_success:
         logger.info("last run not succesfull, not increasing weights")
@@ -258,14 +260,14 @@ while MAXITER-curiter > 0 and outeriter < 10:
     JF.alpha *= 0.01
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
-    for c in base_curves:
-        for i in range(8, args.order+1):
-            c.unfix(f'xc({i})')
-            c.unfix(f'xs({i})')
-            c.unfix(f'yc({i})')
-            c.unfix(f'ys({i})')
-            c.unfix(f'zc({i})')
-            c.unfix(f'zs({i})')
+    # for c in base_curves:
+    #     for i in range(8, args.order+1):
+    #         c.unfix(f'xc({i})')
+    #         c.unfix(f'xs({i})')
+    #         c.unfix(f'yc({i})')
+    #         c.unfix(f'ys({i})')
+    #         c.unfix(f'zc({i})')
+    #         c.unfix(f'zs({i})')
 
 
 def approx_H(x, eps=1e-4):
@@ -329,7 +331,7 @@ for i in range(5):
     f = fnew
     logger.info(f"J(x)={f:.15f}, |dJ(x)|={np.linalg.norm(d):.3e}")
 
-fun(x)
+gradmin = fun(x)[1]
 
 curves_to_vtk(curves_rep, outdir + "curves_opt")
 pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
@@ -350,6 +352,7 @@ np.savetxt(outdir + "arclengths.txt", arclengths)
 np.savetxt(outdir + "dist.txt", [dist])
 np.savetxt(outdir + "length.txt", [J.J() for J in Jls])
 np.savetxt(outdir + "xmin.txt", JF.x)
+np.savetxt(outdir + "grad.txt", gradmin)
 for i in range(len(base_curves)):
     np.savetxt(outdir + f"curve_{i}.txt", base_curves[i].x)
 np.savetxt(outdir + "history.txt", history)
