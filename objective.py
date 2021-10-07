@@ -122,8 +122,8 @@ class MPIObjective(Optimizable):
 
 def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12):
     ncoils = 4
-    R0 = 1.0
-    R1 = 0.5
+    R0 = 1.1
+    R1 = 0.6
     order = order
     PPP = 15
     GAUSS_SIGMA_SYS = sigma

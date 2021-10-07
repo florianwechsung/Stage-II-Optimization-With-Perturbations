@@ -175,7 +175,7 @@ def fun(dofs, silent=False):
         grad = -lastgrad[0]
     else:
         lastgrad[0] = grad
-    return 1e-3 * J, 1e-3 * grad
+    return 1e-4 * J, 1e-4 * grad
 
 
 logger.info(f"Curvatures {[np.max(c.kappa()) for c in base_curves]}")
