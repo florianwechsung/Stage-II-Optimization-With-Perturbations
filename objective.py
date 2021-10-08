@@ -146,8 +146,6 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
         return cs
 
     base_curves = create_equally_spaced_curves(ncoils, nfp, stellsym=True, R0=R0, R1=R1, order=order, numquadpoints=PPP*order)
-    for c in base_curves:
-        c.fix("zc(0)")
 
     sampler_systematic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_SYS, GAUSS_LEN_SYS, n_derivs=1)
     sampler_statistic = GaussianSampler(base_curves[0].quadpoints, GAUSS_SIGMA_STA, GAUSS_LEN_STA, n_derivs=1)
@@ -162,6 +160,10 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
             x[n:n+k] += 0.01 * np.random.standard_normal(size=(k, ))
             x[2*n:2*n+k] += 0.01 * np.random.standard_normal(size=(k, ))
             c.x = x
+
+    for c in base_curves:
+        c.set("zc(0)", 0.)
+        c.fix("zc(0)")
 
     base_currents = []
     for i in range(ncoils):
