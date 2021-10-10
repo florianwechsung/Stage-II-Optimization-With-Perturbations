@@ -338,8 +338,8 @@ pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(),
 s.to_vtk(outdir + "surf_opt", extra_data=pointData)
 kappas = [np.max(c.kappa()) for c in base_curves]
 arclengths = [np.min(c.incremental_arclength()) for c in base_curves]
-arclength_sub_min = [np.min(J.curve.incremental_arclength()[J.indices]) for J in Jals]
-arclength_sub_max = [np.max(J.curve.incremental_arclength()[J.indices]) for J in Jals]
+arclength_sub_min = [np.min(J.mat @ J.curve.incremental_arclength()) for J in Jals]
+arclength_sub_max = [np.max(J.mat @ J.curve.incremental_arclength()) for J in Jals]
 dist = Jdist.shortest_distance()
 logger.info(f"Curvatures {kappas}")
 logger.info(f"Arclengths {arclengths}")

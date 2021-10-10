@@ -67,12 +67,19 @@ class QuadraticCurveLength(Optimizable):
         return 2*self.alpha*self.alpha*np.maximum(sumlen-self.threshold, 0)*dsumlen
 
 
+# @jit
+# def curve_arclengthvariation_pure(l, indices):
+#     """
+#     This function is used in a Python+Jax implementation of the curve arclength variation.
+#     """
+#     return jnp.var(l[indices])
+
 @jit
-def curve_arclengthvariation_pure(l, indices):
+def curve_arclengthvariation_pure(l, mat):
     """
     This function is used in a Python+Jax implementation of the curve arclength variation.
     """
-    return jnp.var(l[indices])
+    return jnp.var(mat @ l)
 
 
 class UniformArclength():
@@ -80,13 +87,21 @@ class UniformArclength():
     def __init__(self, curve):
         self.curve = curve
         nquadpoints = len(curve.quadpoints)
+        # nquadpoints_constraint = curve.full_dof_size//3 - 1
+        # indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint, endpoint=False)).astype(int)
+        # self.indices = indices
+        # self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, indices))(l))
+
         nquadpoints_constraint = curve.full_dof_size//3 - 1
-        indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint, endpoint=False)).astype(int)
-        self.indices = indices
-        self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, indices))(l))
+        indices = np.floor(np.linspace(1, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
+        mat = np.zeros((nquadpoints_constraint, nquadpoints))
+        for i in range(nquadpoints_constraint):
+            mat[i, indices[i]:indices[i+1]] = 1/(indices[i+1]-indices[i])
+        self.mat = mat
+        self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, mat))(l))
 
     def J(self):
-        return curve_arclengthvariation_pure(self.curve.incremental_arclength(), self.indices)
+        return curve_arclengthvariation_pure(self.curve.incremental_arclength(), self.mat)
 
     @derivative_dec
     def dJ(self):
@@ -125,7 +140,7 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
     R0 = 1.1
     R1 = 0.6
     order = order
-    PPP = 15
+    PPP = 10
     GAUSS_SIGMA_SYS = sigma
     GAUSS_LEN_SYS = 0.25
     GAUSS_SIGMA_STA = sigma
@@ -161,9 +176,9 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
             x[2*n:2*n+k] += 0.01 * np.random.standard_normal(size=(k, ))
             c.x = x
 
-    for c in base_curves:
-        c.set("zc(0)", 0.)
-        c.fix("zc(0)")
+    # for c in base_curves:
+    #     c.set("zc(0)", 0.)
+    #     c.fix("zc(0)")
 
     base_currents = []
     for i in range(ncoils):
