@@ -35,6 +35,8 @@ parser.add_argument("--mindist", type=float, default=0.10)
 parser.add_argument("--maxkappa", type=float, default=7.0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
+parser.add_argument("--usedetig", dest="usedetig", default=False, action="store_true")
+parser.add_argument("--noalen", dest="noalen", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -55,8 +57,8 @@ The target equilibrium is the QA configuration of arXiv:2108.03711.
 """
 
 nfp = 2
-nphi = 64
-ntheta = 64
+nphi = 32
+ntheta = 32
 phis = np.linspace(0, 1./(2*nfp), nphi, endpoint=False)
 thetas = np.linspace(0, 1., ntheta, endpoint=False)
 if args.well:
@@ -66,8 +68,8 @@ else:
 s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
 
 
-MAXITER = 15000
-ALPHA = 1e-5
+MAXITER = 14000
+ALPHA = 0 if args.usedetig else 1e-5
 
 MIN_DIST = args.mindist
 DIST_ALPHA = 10.
@@ -80,9 +82,21 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-ALEN_WEIGHT = 1e-7
+ALEN_WEIGHT = 0 if args.noalen else 1e-7
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}_samples_{args.nsamples}_sigma_{args.sigma}_zeromean_{args.zeromean}/"
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
+if args.noalen:
+    outdir += "_noalen"
+
+outdir_initial_guess = outdir + "/"
+
+if args.nsamples > 0:
+    outdir += f"_samples_{args.nsamples}_sigma_{args.sigma}"
+if args.zeromean:
+    outdir += f"_zeromean_{args.zeromean}"
+if args.usedetig:
+    outdir += "_usedetig"
+
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
@@ -186,7 +200,11 @@ logger.info("""
 ################################################################################
 """)
 f = fun
-dofs = JF.x
+if args.nsamples == 0:
+    dofs = JF.x
+else:
+    dofs = np.loadtxt(outdir_initial_guess + "xmin.txt")
+    logger.info(f"Starting from initial guess found in {outdir_initial_guess}")
 f(dofs)
 # import time
 # import cProfile
@@ -218,7 +236,7 @@ logger.info("""
 """)
 curiter = 0
 outeriter = 0
-PENINCREASES = 10
+PENINCREASES = 7
 MAXLOCALITER = MAXITER//PENINCREASES
 CURPENINCREASES = 0
 # for c in base_curves:
