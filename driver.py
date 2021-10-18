@@ -85,7 +85,7 @@ LENGTH_CON_WEIGHT = 1
 
 ALEN_WEIGHT = 0 if args.noalen else 1e-7
 
-MSC_WEIGHT = 1.
+MSC_WEIGHT = 1e-3
 
 outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
@@ -99,6 +99,7 @@ if args.zeromean:
     outdir += f"_zeromean_{args.zeromean}"
 if args.usedetig:
     outdir += "_usedetig"
+outdir += "/"
 
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
@@ -209,11 +210,11 @@ logger.info("""
 ################################################################################
 """)
 f = fun
-if args.nsamples == 0:
-    dofs = JF.x
-else:
+if args.usedetig:
     dofs = np.loadtxt(outdir_initial_guess + "xmin.txt")
     logger.info(f"Starting from initial guess found in {outdir_initial_guess}")
+else:
+    dofs = JF.x
 f(dofs)
 # import time
 # import cProfile
