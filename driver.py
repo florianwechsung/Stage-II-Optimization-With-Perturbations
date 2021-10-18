@@ -5,7 +5,7 @@ from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
-from objective import create_curves, CoshCurveLength, QuadraticCurveLength, UniformArclength
+from objective import create_curves, CoshCurveLength, QuadraticCurveLength, UniformArclength, MeanSquareCurvature
 from scipy.optimize import minimize
 import argparse
 import os
@@ -37,6 +37,7 @@ parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
 parser.add_argument("--usedetig", dest="usedetig", default=False, action="store_true")
 parser.add_argument("--noalen", dest="noalen", default=False, action="store_true")
+parser.add_argument("--maxmsc", type=float, default=6)
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -84,7 +85,9 @@ LENGTH_CON_WEIGHT = 1
 
 ALEN_WEIGHT = 0 if args.noalen else 1e-7
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
+MSC_WEIGHT = 1.
+
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
     outdir += "_noalen"
 
@@ -128,6 +131,7 @@ DIST_WEIGHT = 10000.
 LENGTH_CON_WEIGHT = 0.01
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
 
+Jmscs = [MeanSquareCurvature(c, args.maxmsc) for c in base_curves]
 Jf = SquaredFlux(s, bs)
 
 Jfs = [SquaredFlux(s, BiotSavart(cs)) for cs in coils_fil_pert]
@@ -170,6 +174,11 @@ def fun(dofs, silent=False):
         if args.lengthbound > 0:
             J += LENGTH_CON_WEIGHT * Jlconstraint.J()
             dJ += LENGTH_CON_WEIGHT * Jlconstraint.dJ(partials=True)
+    if MSC_WEIGHT > 0:
+        for Jmsc in Jmscs:
+            J += MSC_WEIGHT * Jmsc.J()
+            dJ += MSC_WEIGHT * Jmsc.dJ(partials=True)
+
     grad = dJ(JF)
     cl_string = ", ".join([f"{J.J():.3f}" for J in Jls])
     totalcl = sum([J.J() for J in Jls])
@@ -263,6 +272,10 @@ while MAXITER-curiter > 0 and outeriter < 10:
         if sum([np.sqrt(J.J()) for J in Jals]) > 1e-3:
             logger.info("Increase weight for arclength")
             ALEN_WEIGHT *= 3.
+        if sum([np.sqrt(J.J()) for J in Jmscs]) > 1e-3:
+            logger.info("Increase weight for Mean Squared Curvature")
+            MSC_WEIGHT *= 3.
+
     # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
     # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
@@ -360,6 +373,7 @@ arclength_sub_min = [np.min(J.mat @ J.curve.incremental_arclength()) for J in Ja
 arclength_sub_max = [np.max(J.mat @ J.curve.incremental_arclength()) for J in Jals]
 dist = Jdist.shortest_distance()
 logger.info(f"Curvatures {kappas}")
+logger.info(f"Mean-Squared Curvatures {[J.msc() for J in Jmscs]}")
 logger.info(f"Arclengths {arclengths}")
 logger.info(f"Arclengths subsampled {arclength_sub_min} {arclength_sub_max}")
 logger.info(f"Shortest distance {dist}")
