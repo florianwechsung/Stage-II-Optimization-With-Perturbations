@@ -38,6 +38,7 @@ parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_
 parser.add_argument("--usedetig", dest="usedetig", default=False, action="store_true")
 parser.add_argument("--noalen", dest="noalen", default=False, action="store_true")
 parser.add_argument("--maxmsc", type=float, default=6)
+parser.add_argument("--expquad", dest="expquad", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -58,9 +59,11 @@ The target equilibrium is the QA configuration of arXiv:2108.03711.
 """
 
 nfp = 2
-nphi = 32
 ntheta = 32
+nphi = 32
 phis = np.linspace(0, 1./(2*nfp), nphi, endpoint=False)
+if args.expquad:
+    phis += phis[1]/2
 thetas = np.linspace(0, 1., ntheta, endpoint=False)
 if args.well:
     filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
@@ -90,6 +93,8 @@ MSC_WEIGHT = 1e-3
 outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
     outdir += "_noalen"
+if args.expquad:
+    outdir += "_expquad"
 
 outdir_initial_guess = outdir + "/"
 
