@@ -60,8 +60,12 @@ The target equilibrium is the QA configuration of arXiv:2108.03711.
 
 nfp = 2
 ntheta = 32
-nphi = 32
-phis = np.linspace(0, 1./(2*nfp), nphi, endpoint=False)
+if args.nsamples == 0:
+    nphi = 32
+    phis = np.linspace(0, 1./(2*nfp), nphi, endpoint=False)
+else:
+    nphi = 128
+    phis = np.linspace(0, 1., nphi, endpoint=False)
 if args.expquad:
     phis += phis[1]/2
 thetas = np.linspace(0, 1., ntheta, endpoint=False)
