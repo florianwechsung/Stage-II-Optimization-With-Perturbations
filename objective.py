@@ -15,7 +15,6 @@ from randomgen import SeedSequence, PCG64
 import jax.numpy as jnp
 from jax import grad, vjp
 from mpi4py import MPI
-comm = MPI.COMM_WORLD
 
 
 def sum_across_comm(derivative, comm):
@@ -167,7 +166,7 @@ class MPIObjective(Optimizable):
         return all_derivs
 
 
-def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12):
+def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12, comm=MPI.COMM_WORLD):
     ncoils = 4
     R0 = 1.1
     R1 = 0.6
@@ -237,8 +236,10 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     coils_fil_pert = []
     for j in range(*parallel_loop_bounds(comm, nsamples)):
+        if j % 100 == 0:
+            print(j)
         base_curves_perturbed = []
-        rg = np.random.Generator(PCG64(seeds_sys[j]))
+        rg = np.random.Generator(PCG64(seeds_sys[j], inc=0))
         for i in range(ncoils):
             pert = PerturbationSample(sampler_systematic, randomgen=rg)
             for k in range(NFIL):
@@ -247,7 +248,7 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
         coils_perturbed_rep = coils_via_symmetries(base_curves_perturbed, fil_currents, nfp, True)
 
-        rg = np.random.Generator(PCG64(seeds_sta[j]))
+        rg = np.random.Generator(PCG64(seeds_sta[j], inc=0))
         for i in range(nfp * ncoils * 2):
             pert = PerturbationSample(sampler_statistic, randomgen=rg)
             for k in range(NFIL):
