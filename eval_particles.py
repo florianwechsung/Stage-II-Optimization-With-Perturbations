@@ -103,7 +103,10 @@ sinner = SurfaceXYZTensorFourier(
     mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_0.10.txt") * LENGTH_SCALE
 
-meanb = np.mean(bs.set_points(souter.gamma().reshape((-1, 3))).AbsB())
+B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
+norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
+meanb = np.mean(B_on_surface * norm)/np.mean(norm)
+
 for i in range(4):
     c = coils_boozer[i].current._ScaledCurrent__basecurrent
     c.unfix_all()
