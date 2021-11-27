@@ -169,7 +169,7 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
-np.savetxt(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.txt", paths_gc_h)
+np.save(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.npy", paths_gc_h)
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
 print(np.mean(get_lost_or_not(paths_gc_h)))
