@@ -128,10 +128,11 @@ bsh = InterpolatedField(
 )
 TMAX = 2e-1
 
+seed = 1
 def trace_particles(bfield, label, mode='gc_vac'):
     t1 = time.time()
     gc_tys, gc_phi_hits = trace_particles_starting_on_surface(
-        sinner, bfield, nparticles, tmax=TMAX, seed=1, mass=ALPHA_PARTICLE_MASS, charge=ALPHA_PARTICLE_CHARGE,
+        sinner, bfield, nparticles, tmax=TMAX, seed=seed, mass=ALPHA_PARTICLE_MASS, charge=ALPHA_PARTICLE_CHARGE,
         Ekin=FUSION_ALPHA_PARTICLE_ENERGY, umin=-1, umax=+1, comm=comm,
         phis=[], tol=1e-10,
         stopping_criteria=[LevelsetStoppingCriterion(sc_particle.dist)], mode=mode,
@@ -164,6 +165,7 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
+np.savetxt(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.txt", paths_gc_h
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
 print(np.mean(get_lost_or_not(paths_gc_h)))
