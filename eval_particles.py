@@ -26,9 +26,12 @@ comm = MPI.COMM_WORLD
 parser = argparse.ArgumentParser()
 parser.add_argument("--sigma", type=float, default=1e-3)
 parser.add_argument("--sampleidx", type=int, default=-1)
+parser.add_argument("--spawnidx", type=int, default=1)
 parser.add_argument("--outdiridx", type=int, default=0)
+parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 args = parser.parse_args()
+print(args, flush=True)
 
 if args.sampleidx == -1:
     sampleidx = None
@@ -101,7 +104,7 @@ souter = SurfaceXYZTensorFourier(
 souter.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_1.00.txt") * LENGTH_SCALE
 sinner = SurfaceXYZTensorFourier(
     mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_0.10.txt") * LENGTH_SCALE
+sinner.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_0.{args.spawnidx}0.txt") * LENGTH_SCALE
 
 B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
@@ -113,28 +116,29 @@ for i in range(4):
     c.x = c.x * 5.78857 / meanb
 
 sc_particle = SurfaceClassifier(souter, h=0.1, p=2)
-n = 50
+n = 100 if sampleidx is None else 75
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
-nparticles = 200
+nparticles = 1000
 
 degree = 5
+print("n =", n, ", degree =", degree)
 rrange = (np.min(rs), np.max(rs), n)
-phirange = (0, 2*np.pi/nfp, n//2)
+phirange = (0, 2*np.pi/nfp, n//nfp)
 zrange = (0, np.max(zs), n//2) if stellsym else (np.min(zs), np.max(zs), n)
 bsh = InterpolatedField(
     bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=stellsym
 )
 TMAX = 2e-1
 
-seed = 1
+seed = args.seed
 def trace_particles(bfield, label, mode='gc_vac'):
     t1 = time.time()
     gc_tys, gc_phi_hits = trace_particles_starting_on_surface(
         sinner, bfield, nparticles, tmax=TMAX, seed=seed, mass=ALPHA_PARTICLE_MASS, charge=ALPHA_PARTICLE_CHARGE,
         Ekin=FUSION_ALPHA_PARTICLE_ENERGY, umin=-1, umax=+1, comm=comm,
-        phis=[], tol=1e-10,
+        phis=[], tol=1e-11,
         stopping_criteria=[LevelsetStoppingCriterion(sc_particle.dist)], mode=mode,
         forget_exact_path=True)
     t2 = time.time()
@@ -165,7 +169,7 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
-np.savetxt(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.txt", paths_gc_h
+np.savetxt(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.txt", paths_gc_h)
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
 print(np.mean(get_lost_or_not(paths_gc_h)))
