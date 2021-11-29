@@ -119,20 +119,29 @@ for i in range(4):
 sc_particle = SurfaceClassifier(souter, h=0.1, p=2)
 #n = 100 if sampleidx is None else 75
 n = args.resolution
+
+def skip(rs, phis, zs):
+    rphiz = np.asarray([rs, phis, zs]).T.copy()
+    dists = sc_particle.evaluate_rphiz(rphiz)
+    skip = list((dists < -0.04).flatten())
+    print("sum(skip) =", sum(skip), "out of ", len(skip), flush=True)
+    # skip = [p < 0.5 for p in phis]
+    return skip
+
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
-nparticles = 1000
+nparticles = 10000
 
 degree = 5
 print("n =", n, ", degree =", degree)
 rrange = (np.min(rs), np.max(rs), n)
-phirange = (0, 2*np.pi/nfp, n//nfp)
+phirange = (0, 2*np.pi/nfp, 4*n//nfp)
 zrange = (0, np.max(zs), n//2) if stellsym else (np.min(zs), np.max(zs), n)
 bsh = InterpolatedField(
-    bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=stellsym
+    bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=stellsym, skip=skip
 )
-TMAX = 2e-1
+TMAX = 2e-2
 
 seed = args.seed
 def trace_particles(bfield, label, mode='gc_vac'):
