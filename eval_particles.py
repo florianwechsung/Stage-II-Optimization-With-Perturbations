@@ -136,8 +136,8 @@ nparticles = 10000
 degree = 5
 print("n =", n, ", degree =", degree)
 rrange = (np.min(rs), np.max(rs), n)
-phirange = (0, 2*np.pi/nfp, 4*n//nfp)
-zrange = (0, np.max(zs), n//2) if stellsym else (np.min(zs), np.max(zs), n)
+phirange = (0, 2*np.pi/nfp, 8*n//nfp)
+zrange = (0, np.max(zs), (n//2)) if stellsym else (np.min(zs), np.max(zs), n)
 bsh = InterpolatedField(
     bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=stellsym, skip=skip
 )
