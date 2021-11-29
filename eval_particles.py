@@ -29,6 +29,7 @@ parser.add_argument("--sampleidx", type=int, default=-1)
 parser.add_argument("--spawnidx", type=int, default=1)
 parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--seed", type=int, default=1)
+parser.add_argument("--resolution", type=int, default=75)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 args = parser.parse_args()
 print(args, flush=True)
@@ -116,7 +117,8 @@ for i in range(4):
     c.x = c.x * 5.78857 / meanb
 
 sc_particle = SurfaceClassifier(souter, h=0.1, p=2)
-n = 100 if sampleidx is None else 75
+#n = 100 if sampleidx is None else 75
+n = args.resolution
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
@@ -169,7 +171,7 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
-np.save(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_seed_{seed}.npy", paths_gc_h)
+np.save(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}.npy", paths_gc_h)
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
 print(np.mean(get_lost_or_not(paths_gc_h)))
