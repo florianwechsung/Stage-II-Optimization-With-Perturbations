@@ -166,13 +166,13 @@ class MPIObjective(Optimizable):
         return all_derivs
 
 
-def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12, comm=MPI.COMM_WORLD):
+def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=False, order=12, comm=MPI.COMM_WORLD, sym=False):
     ncoils = 4
     R0 = 1.1
     R1 = 0.6
     order = order
     PPP = 10
-    GAUSS_SIGMA_SYS = sigma
+    GAUSS_SIGMA_SYS = 2*sigma if sym else sigma
     GAUSS_LEN_SYS = 0.25
     GAUSS_SIGMA_STA = sigma
     GAUSS_LEN_STA = 0.5
@@ -247,14 +247,14 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
                     CurvePerturbed(fil_curves[i*NFIL+k], pert, zero_mean=zero_mean))
 
         coils_perturbed_rep = coils_via_symmetries(base_curves_perturbed, fil_currents, nfp, True)
-
-        rg = np.random.Generator(PCG64(seeds_sta[j], inc=0))
-        for i in range(nfp * ncoils * 2):
-            pert = PerturbationSample(sampler_statistic, randomgen=rg)
-            for k in range(NFIL):
-                c = coils_perturbed_rep[i*NFIL + k]
-                coils_perturbed_rep[i*NFIL + k] = Coil(
-                    CurvePerturbed(c.curve, pert, zero_mean=zero_mean), c.current)
+        if not sym:
+            rg = np.random.Generator(PCG64(seeds_sta[j], inc=0))
+            for i in range(nfp * ncoils * 2):
+                pert = PerturbationSample(sampler_statistic, randomgen=rg)
+                for k in range(NFIL):
+                    c = coils_perturbed_rep[i*NFIL + k]
+                    coils_perturbed_rep[i*NFIL + k] = Coil(
+                        CurvePerturbed(c.curve, pert, zero_mean=zero_mean), c.current)
         # full_curves_perturbed = [c.curve for c in coils_perturbed_rep]
         # curves_to_vtk(fil_curves, "/tmp/fil_curves")
         # curves_to_vtk(base_curves_perturbed, f"/tmp/base_curves_perturbed_{j}")
