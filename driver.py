@@ -39,6 +39,7 @@ parser.add_argument("--usedetig", dest="usedetig", default=False, action="store_
 parser.add_argument("--noalen", dest="noalen", default=False, action="store_true")
 parser.add_argument("--maxmsc", type=float, default=6)
 parser.add_argument("--expquad", dest="expquad", default=False, action="store_true")
+parser.add_argument("--glob", dest="glob", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -99,6 +100,8 @@ if args.noalen:
     outdir += "_noalen"
 if args.expquad:
     outdir += "_expquad"
+if args.glob:
+    outdir += "_nonlocal"
 
 outdir_initial_guess = outdir + "/"
 
@@ -142,9 +145,9 @@ LENGTH_CON_WEIGHT = 0.01
 Jkappas = [LpCurveCurvature(c, 2, desired_length=2*np.pi/KAPPA_MAX) for c in base_curves]
 
 Jmscs = [MeanSquareCurvature(c, args.maxmsc) for c in base_curves]
-Jf = SquaredFlux(s, bs)
+Jf = SquaredFlux(s, bs, local=(not args.glob))
 
-Jfs = [SquaredFlux(s, BiotSavart(cs)) for cs in coils_fil_pert]
+Jfs = [SquaredFlux(s, BiotSavart(cs), local=(not args.glob)) for cs in coils_fil_pert]
 
 if args.nsamples > 0:
     from objective import MPIObjective
