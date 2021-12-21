@@ -3,6 +3,7 @@ from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
+from simsopt.field.coil import Current
 from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
 from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
 from objective import create_curves, CoshCurveLength, QuadraticCurveLength, UniformArclength, MeanSquareCurvature
@@ -40,6 +41,7 @@ parser.add_argument("--noalen", dest="noalen", default=False, action="store_true
 parser.add_argument("--maxmsc", type=float, default=6)
 parser.add_argument("--expquad", dest="expquad", default=False, action="store_true")
 parser.add_argument("--glob", dest="glob", default=False, action="store_true")
+parser.add_argument("--fixcurrents", dest="fixcurrents", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -111,6 +113,8 @@ if args.zeromean:
     outdir += f"_zeromean_{args.zeromean}"
 if args.usedetig:
     outdir += "_usedetig"
+if args.fixcurrents:
+    outdir += "_fixcurrents"
 outdir += "/"
 
 os.makedirs(outdir, exist_ok=True)
@@ -162,6 +166,15 @@ else:
 history = []
 ctr = [0]
 
+
+currents = list(sorted([s for s in JF.ancestors if isinstance(s, Current)], key=lambda c: c.name))
+def fixcurrents():
+    for c in currents[1:]:
+        c.fix_all()
+
+def unfixcurrents():
+    for c in currents[1:]:
+        c.unfix_all()
 
 def cb(*args):
     ctr[0] += 1
@@ -251,6 +264,9 @@ for eps in [1e-3, 1e-4, 1e-5]:
 # pr.dump_stats('profile.stat')
 # import sys; sys.exit()
 f(dofs)
+if args.fixcurrents:
+    fixcurrents()
+dofs = JF.x
 logger.info("""
 ################################################################################
 ### Run the optimisation #######################################################
@@ -376,6 +392,11 @@ for i in range(5):
     logger.info(f"J(x)={f:.15f}, |dJ(x)|={np.linalg.norm(d):.3e}")
 
 gradmin = fun(x)[1]
+
+if args.fixcurrents:
+    unfixcurrents()
+
+dofs = JF.x
 
 curves_to_vtk(curves_rep, outdir + "curves_opt")
 pointData = {"B_N/|B|": np.sum(bs.B().reshape(s.gamma().shape) * s.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
