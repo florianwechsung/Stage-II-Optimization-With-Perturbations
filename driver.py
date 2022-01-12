@@ -93,11 +93,11 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-ALEN_WEIGHT = 0 if args.noalen else 1e-7
+ALEN_WEIGHT = 0 if args.noalen else 1# 1e-7
 
 MSC_WEIGHT = 1e-3
 
-outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
+outdir = f"output/tempmwell_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
     outdir += "_noalen"
 if args.expquad:
@@ -331,6 +331,7 @@ while MAXITER-curiter > 0 and outeriter < 10:
     #         c.unfix(f'zs({i})')
 
 
+import sys; sys.exit()
 def approx_H(x, eps=1e-4):
     n = x.size
     H = np.zeros((n, n))

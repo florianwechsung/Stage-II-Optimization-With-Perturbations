@@ -45,10 +45,10 @@ else:
     sampleidx = args.sampleidx
 filename = 'input.LandremanPaul2021_QA'
 outdirs = [
-        "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-        "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-        "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-        "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad/",
+    "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
+    "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
+    "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
+    "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad/",
 ]
 
 filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
@@ -164,6 +164,10 @@ sinner = SurfaceRZFourier(
     mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner.x = np.load("qfmsurfaces/" + boozeroutdir + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
+B = bs.set_points(souter.gamma().reshape((-1, 3))).B().reshape(souter.gamma().shape)
+print("Bn", np.mean(np.sum(B * souter.normal(), axis=2)**2))
+import sys; sys.exit()
+
 B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
 meanb = np.mean(B_on_surface * norm)/np.mean(norm)
@@ -203,12 +207,14 @@ bsh = InterpolatedField(
 TMAX = 2e-1
 
 seed = args.seed
+tol = 1e-11
+print("tol", tol)
 def trace_particles(bfield, label, mode='gc_vac'):
     t1 = time.time()
     gc_tys, gc_phi_hits = trace_particles_starting_on_surface(
         sinner, bfield, nparticles, tmax=TMAX, seed=seed, mass=ALPHA_PARTICLE_MASS, charge=ALPHA_PARTICLE_CHARGE,
         Ekin=FUSION_ALPHA_PARTICLE_ENERGY, umin=-1, umax=+1, comm=comm,
-        phis=[], tol=1e-11,
+        phis=[], tol=tol,
         stopping_criteria=[LevelsetStoppingCriterion(sc_particle.dist)], mode=mode,
         forget_exact_path=True)
     t2 = time.time()

@@ -3,3 +3,17 @@ output-old/*
 output_oldcurrent/*
 __pycache__/*
 .DS_Store
+
+
+20211030-01-010-for_Florian_smallStuff/
+20211030-01-019_data_for_Florian/
+logs/
+output_tmp/
+outputboozer/
+outputformatt/
+outputformatt_old/
+outputold/
+poincare/
+pv/
+qfmsurfaces/
+tmp/

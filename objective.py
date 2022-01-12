@@ -5,6 +5,7 @@ import numpy as np
 from simsopt.geo.surfacerzfourier import SurfaceRZFourier
 from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import RotatedCurve, curves_to_vtk
+from simsopt.geo.curvecorrected import CurveCorrected
 from simsopt.geo.multifilament import CurveShiftedRotated, FilamentRotation
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.field.coil import Current, Coil, ScaledCurrent, coils_via_symmetries
@@ -123,8 +124,11 @@ class UniformArclength():
         # self.indices = indices
         # self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, indices))(l))
 
-        nquadpoints_constraint = curve.full_dof_size//3 - 1
-        indices = np.floor(np.linspace(1, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
+        # nquadpoints_constraint = curve.full_dof_size//3 - 10
+        nquadpoints_constraint = 2
+        # nquadpoints_constraint = curve.full_dof_size//3 - 0
+        # nquadpoints_constraint = curve.full_dof_size//3 + 1
+        indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
         mat = np.zeros((nquadpoints_constraint, nquadpoints))
         for i in range(nquadpoints_constraint):
             mat[i, indices[i]:indices[i+1]] = 1/(indices[i+1]-indices[i])
@@ -263,3 +267,25 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
         coils_fil_pert.append(coils_perturbed_rep)
 
     return base_curves, base_currents, coils_fil, coils_fil_pert
+
+def add_correction_to_coils(coils):
+    return [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils]
+
+def fix_correction_optimizables(coils):
+    for c in coils:
+        assert isinstance(c.curve, CurveCorrected)
+        c.curve.fix_all()
+        c.current._CurrentSum__current_B._ScaledCurrent__basecurrent.fix_all()
+
+def unfix_correction_optimizables(coils, unfix_currents=True, unfix_position=False):
+    for c in coils:
+        assert isinstance(c.curve, CurveCorrected)
+        if unfix_position:
+            c.curve.unfix_all()
+        if unfix_currents:
+            c.current._CurrentSum__current_B._ScaledCurrent__basecurrent.unfix_all()
+
+def fix_all_dofs(optims):
+    for o in optims:
+        for a in o._get_ancestors():
+            a.fix_all()
