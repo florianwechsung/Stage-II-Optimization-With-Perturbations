@@ -6,6 +6,9 @@ from simsopt.objectives.fluxobjective import SquaredFlux
 from simsopt.geo.surfacexyztensorfourier import SurfaceXYZTensorFourier
 from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
+from simsopt.geo.curvecorrected import CurveCorrected
+from simsopt.field.coil import Current, Coil, ScaledCurrent
+
 
 from simsopt.field.tracing import trace_particles_starting_on_surface, SurfaceClassifier, \
     particles_to_vtk, LevelsetStoppingCriterion, plot_poincare_data
@@ -56,9 +59,22 @@ outdirs = [
         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/"
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
 ]
+outdirs = [
+        "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
+        "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad_nonlocal_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad_nonlocal_dashfix/",
+        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
+        ]
+
 
 LENGTH_SCALE = 10.1515
 B_SCALE = 5.78857
@@ -113,6 +129,15 @@ if not args.sym:
 else:
     for i in range(4):
         coils_boozer[i].curve.sample *= LENGTH_SCALE
+
+apply_correction = True
+if apply_correction:
+    cs = [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils_boozer]
+    bs = BiotSavart(cs)
+    y = np.loadtxt(outdir + f"corrections/correction_sigma_{sigma}_sampleidx_{k}.txt")
+    bs.x = y
+    #for i in range(16):
+    #    curve = 
 
 
 #boozeroutdir = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
