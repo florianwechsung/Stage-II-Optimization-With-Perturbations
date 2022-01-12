@@ -21,6 +21,7 @@ parser.add_argument("--sampleidx", type=int, default=-1)
 parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--flux", type=float, default=1.0)
+parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
 args = parser.parse_args()
 
 if args.sampleidx == -1:
@@ -44,6 +45,8 @@ else:
         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
     ]
 
 
@@ -64,7 +67,8 @@ x = np.loadtxt(outdir + "xmin.txt")
 
 nsamples = 0 if sampleidx is None else sampleidx + 1
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
-    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, sym=args.sym)
+    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, sym=args.sym,
+    zero_mean=args.zeromean)
 if sampleidx is None:
     coils_qfm = coils_fil
 else:
@@ -125,10 +129,12 @@ bs.x = x
 if sampleidx is None:
     outname = outdir + f"qfm_{sampleidx}"
 else:
+    outname = outdir + f"qfm_seed_{sampleidx}"
+    if args.zeromean:
+        outname += "_zeromean"
     if args.sym:
-        outname = outdir + f"qfm_seed_{sampleidx}_sym_sigma_{sigma}"
-    else:
-        outname = outdir + f"qfm_seed_{sampleidx}_sigma_{sigma}"
+        outname += "_sym"
+    outname += f"_sigma_{sigma}"
 
 outname += "_32_32" + label_appendix
 # for i in range(16):
@@ -172,9 +178,9 @@ print(f"||ar constraint||={0.5*(ar.J()-ar_target)**2:.8e}, ||residual||={np.lina
 # print(f"||tf constraint||={0.5*(tf.J()-tf_target)**2:.8e}, ||residual||={np.linalg.norm(qfm.J()):.8e}")
 
 # np.save(outname, sq.get_dofs())
-np.save("outputformatt/" + outname.replace("/", "_"), sq.get_dofs())
+np.save("qfmsurfaces/" + outname.replace("/", "_"), sq.get_dofs())
 B = bs.set_points(sq.gamma().reshape((-1, 3))).B().reshape(sq.gamma().shape)
-np.save("outputformatt/" + outname.replace("/", "_") + "_B", B)
+np.save("qfmsurfaces/" + outname.replace("/", "_") + "_B", B)
 pointData = {"B_N/|B|": np.sum(bs.B().reshape(sq.gamma().shape) * sq.unitnormal(), axis=2)[:, :, None]/bs.AbsB().reshape((nphi, ntheta, 1))}
 print(outdir)
 bs.set_points([[0., 0., 0.]]).dB_by_dX() # clear memory usage of biot savart object

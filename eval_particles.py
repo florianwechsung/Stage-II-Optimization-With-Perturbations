@@ -31,6 +31,8 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--resolution", type=int, default=75)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
+parser.add_argument("--sym", dest="sym", default=False, action="store_true")
+parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true") 
 args = parser.parse_args()
 print(args, flush=True)
 
@@ -54,6 +56,8 @@ outdirs = [
         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
+        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/"
 ]
 
 LENGTH_SCALE = 10.1515
@@ -61,11 +65,13 @@ B_SCALE = 5.78857
 
 fil = 0
 
-nphi = 64
-ntheta = 64
-if sampleidx is None:
+nphi = 100
+ntheta = 100
+if sampleidx is None or args.sym:
     mpol = 16
     ntor = 16
+    mpol = 32
+    ntor = 32
     stellsym = True
     nfp = 2
 else:
@@ -80,7 +86,8 @@ thetas = np.linspace(0, 1., ntheta, endpoint=False)
 sigma = args.sigma
 nsamples = 0 if sampleidx is None else sampleidx + 1
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
-    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, comm=MPI.COMM_SELF)
+    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, comm=MPI.COMM_SELF, sym=args.sym,
+    zero_mean=args.zeromean)
 # for i in list(range(nsamples)):
 # for i in [None] + list(range(nsamples)):
 i = sampleidx
@@ -98,14 +105,39 @@ bs.x = x
 
 for i in range(4):
     coils_boozer[i].curve.x = coils_boozer[i].curve.x * LENGTH_SCALE
-boozeroutdir = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
+if not args.sym:
+    for i in range(4):
+        coils_boozer[i].curve.curve.sample *= LENGTH_SCALE
+    for i in range(16):
+        coils_boozer[i].curve.sample *= LENGTH_SCALE
+else:
+    for i in range(4):
+        coils_boozer[i].curve.sample *= LENGTH_SCALE
 
-souter = SurfaceXYZTensorFourier(
-    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-souter.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_1.00.txt") * LENGTH_SCALE
-sinner = SurfaceXYZTensorFourier(
-    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner.x = np.loadtxt("outputboozer/" + boozeroutdir + f"_0.{args.spawnidx}0.txt") * LENGTH_SCALE
+
+#boozeroutdir = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
+boozeroutdir = outdir.replace("/", "_")[:-1] + f"_qfm_seed_{sampleidx}"
+if args.zeromean:
+    boozeroutdir += "_zeromean"
+if args.sym:
+    boozeroutdir += "_sym"
+boozeroutdir += f"_sigma_{sigma}"
+
+
+#souter = SurfaceXYZTensorFourier(
+#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+#souter = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+souter = SurfaceRZFourier(
+    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+souter.x = np.load("qfmsurfaces/" + boozeroutdir + f"_32_32_1.0.npy") * LENGTH_SCALE
+#sinner = SurfaceXYZTensorFourier(
+#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+#sinner = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+sinner = SurfaceRZFourier(
+    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+sinner.x = np.load("qfmsurfaces/" + boozeroutdir + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
 B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
@@ -115,6 +147,8 @@ for i in range(4):
     c = coils_boozer[i].current._ScaledCurrent__basecurrent
     c.unfix_all()
     c.x = c.x * 5.78857 / meanb
+
+print("Intial qfm value normalised", SquaredFlux(souter, bs).J())
 
 sc_particle = SurfaceClassifier(souter, h=0.1, p=2)
 #n = 100 if sampleidx is None else 75
@@ -131,7 +165,7 @@ def skip(rs, phis, zs):
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
-nparticles = 10000
+nparticles = 2000
 
 degree = 5
 print("n =", n, ", degree =", degree)
@@ -141,7 +175,7 @@ zrange = (0, np.max(zs), (n//2)) if stellsym else (np.min(zs), np.max(zs), n)
 bsh = InterpolatedField(
     bs, degree, rrange, phirange, zrange, True, nfp=nfp, stellsym=stellsym, skip=skip
 )
-TMAX = 2e-2
+TMAX = 2e-1
 
 seed = args.seed
 def trace_particles(bfield, label, mode='gc_vac'):
@@ -180,7 +214,11 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
-np.save(f"{outdir}/particles_sampleidx_{args.sampleidx}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}.npy", paths_gc_h)
+outpath = f"{outdir}/particles_sampleidx_{args.sampleidx}"
+if args.zeromean:
+    outpath += "_zeromean"
+outpath += f"_sigma_{sigma}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}_acc.npy"
+np.save(outpath, paths_gc_h)
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
 print(np.mean(get_lost_or_not(paths_gc_h)))

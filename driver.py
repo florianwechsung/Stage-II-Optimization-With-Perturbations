@@ -105,6 +105,7 @@ if args.expquad:
 if args.glob:
     outdir += "_nonlocal"
 
+#outdir_initial_guess = outdir + "_dashfix/"
 outdir_initial_guess = outdir + "/"
 
 if args.nsamples > 0:
@@ -115,7 +116,7 @@ if args.usedetig:
     outdir += "_usedetig"
 if args.fixcurrents:
     outdir += "_fixcurrents"
-outdir += "/"
+outdir += "_dashfix/"
 
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
