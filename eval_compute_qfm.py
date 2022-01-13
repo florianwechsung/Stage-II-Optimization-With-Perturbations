@@ -9,7 +9,7 @@ from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
 from simsopt.geo.qfmsurface import QfmSurface
 from simsopt.geo.surfaceobjectives import QfmResidual, ToroidalFlux, Area, Volume
-from objective import create_curves
+from objective import create_curves, fix_all_dofs, unfix_correction_optimizables, fix_correction_optimizables, add_correction_to_coils
 from scipy.optimize import minimize
 import argparse
 import numpy as np
@@ -22,6 +22,8 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--flux", type=float, default=1.0)
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
+parser.add_argument("--correction", dest="correction", default=False, action="store_true") 
+parser.add_argument("--adjcurr", dest="adjcurr", default=False, action="store_true") 
 args = parser.parse_args()
 
 if args.sampleidx == -1:
@@ -73,6 +75,7 @@ if sampleidx is None:
     coils_qfm = coils_fil
 else:
     coils_qfm = coils_fil_pert[sampleidx]
+
 
 # sq = SurfaceRZFourier(mpol=mpol+13, ntor=ntor+13, nfp=nfp, stellsym=True, quadpoints_phi=phis, quadpoints_theta=thetas)
 if not args.sym:
@@ -126,6 +129,22 @@ print(len(sq.get_dofs()), "vs", nphi*ntheta)
 bs = BiotSavart(coils_qfm)
 bs.x = x
 
+if args.correction:
+    fix_all_dofs(coils_qfm)
+    coils_qfm = add_correction_to_coils(coils_qfm)
+    fix_correction_optimizables(coils_qfm)
+    unfix_correction_optimizables(coils_qfm, unfix_currents=args.adjcurr, unfix_position=True)
+    bs = BiotSavart(coils_qfm)
+    corrname = "corrections/" \
+        + outdir.replace("/", "_")[:-1] \
+        + f"_correction_sigma_{sigma}_sampleidx_{sampleidx}"
+    if args.adjcurr:
+        corrname += "_adjcurr"
+    y = np.loadtxt(corrname + ".txt")
+    bs.x = y
+
+
+
 if sampleidx is None:
     outname = outdir + f"qfm_{sampleidx}"
 else:
@@ -135,6 +154,12 @@ else:
     if args.sym:
         outname += "_sym"
     outname += f"_sigma_{sigma}"
+    if args.correction:
+        outname += f"_correction"
+        if args.adjcurr:
+            outname += f"_adjcurr"
+
+
 
 outname += "_32_32" + label_appendix
 # for i in range(16):

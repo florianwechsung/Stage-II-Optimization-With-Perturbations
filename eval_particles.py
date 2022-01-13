@@ -8,6 +8,7 @@ from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
 from simsopt.geo.curvecorrected import CurveCorrected
 from simsopt.field.coil import Current, Coil, ScaledCurrent
+from objective import create_curves, fix_all_dofs, unfix_correction_optimizables, fix_correction_optimizables, add_correction_to_coils
 
 
 from simsopt.field.tracing import trace_particles_starting_on_surface, SurfaceClassifier, \
@@ -36,6 +37,8 @@ parser.add_argument("--resolution", type=int, default=75)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--sym", dest="sym", default=False, action="store_true")
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true") 
+parser.add_argument("--correction", dest="correction", default=False, action="store_true") 
+parser.add_argument("--adjcurr", dest="adjcurr", default=False, action="store_true") 
 args = parser.parse_args()
 print(args, flush=True)
 
@@ -64,16 +67,16 @@ outdirs = [
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
 ]
-outdirs = [
-        "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-        "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad_nonlocal_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad_nonlocal_dashfix/",
-        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_4096_sigma_0.001_usedetig_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
-        ]
+# outdirs = [
+#         "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
+#         "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad_nonlocal_dashfix/",
+#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad_nonlocal_dashfix/",
+#         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
+#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_4096_sigma_0.001_usedetig_dashfix/",
+#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
+#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
+#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
+#         ]
 
 
 LENGTH_SCALE = 10.1515
@@ -106,11 +109,10 @@ base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
     zero_mean=args.zeromean)
 # for i in list(range(nsamples)):
 # for i in [None] + list(range(nsamples)):
-i = sampleidx
-if i is None:
+if sampleidx is None:
     coils_boozer = coils_fil
 else:
-    coils_boozer = coils_fil_pert[i]
+    coils_boozer = coils_fil_pert[sampleidx]
 
 outdir = outdirs[args.outdiridx]
 x = np.loadtxt(outdir + "xmin.txt")
@@ -121,32 +123,48 @@ bs.x = x
 
 for i in range(4):
     coils_boozer[i].curve.x = coils_boozer[i].curve.x * LENGTH_SCALE
-if not args.sym:
-    for i in range(4):
-        coils_boozer[i].curve.curve.sample *= LENGTH_SCALE
-    for i in range(16):
-        coils_boozer[i].curve.sample *= LENGTH_SCALE
-else:
-    for i in range(4):
-        coils_boozer[i].curve.sample *= LENGTH_SCALE
+if sampleidx is not None:
+    if not args.sym:
+        for i in range(4):
+            coils_boozer[i].curve.curve.sample *= LENGTH_SCALE
+        for i in range(16):
+            coils_boozer[i].curve.sample *= LENGTH_SCALE
+    else:
+        for i in range(4):
+            coils_boozer[i].curve.sample *= LENGTH_SCALE
 
-apply_correction = True
+apply_correction = args.correction
 if apply_correction:
-    cs = [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils_boozer]
-    bs = BiotSavart(cs)
-    y = np.loadtxt(outdir + f"corrections/correction_sigma_{sigma}_sampleidx_{k}.txt")
+    fix_all_dofs(coils_boozer)
+    coils_boozer = add_correction_to_coils(coils_boozer)
+    fix_correction_optimizables(coils_boozer)
+    unfix_correction_optimizables(coils_boozer, unfix_currents=args.adjcurr, unfix_position=True)
+    bs = BiotSavart(coils_boozer)
+    corrname = "corrections/" \
+        + outdir.replace("/", "_")[:-1] \
+        + f"_correction_sigma_{sigma}_sampleidx_{sampleidx}"
+    if args.adjcurr:
+        corrname += "_adjcurr"
+    y = np.loadtxt(corrname + ".txt")
     bs.x = y
-    #for i in range(16):
-    #    curve = 
+    for i in range(16):
+       cx = coils_boozer[i].curve.x
+       cx[:3] *= LENGTH_SCALE
+       coils_boozer[i].curve.x = cx
 
 
-#boozeroutdir = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
-boozeroutdir = outdir.replace("/", "_")[:-1] + f"_qfm_seed_{sampleidx}"
+#qfmfilename = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
+qfmfilename = outdir.replace("/", "_")[:-1] + f"_qfm_seed_{sampleidx}"
 if args.zeromean:
-    boozeroutdir += "_zeromean"
+    qfmfilename += "_zeromean"
 if args.sym:
-    boozeroutdir += "_sym"
-boozeroutdir += f"_sigma_{sigma}"
+    qfmfilename += "_sym"
+qfmfilename += f"_sigma_{sigma}"
+if args.correction:
+    qfmfilename += f"_correction"
+    if args.adjcurr:
+        qfmfilename += f"_adjcurr"
+
 
 
 #souter = SurfaceXYZTensorFourier(
@@ -155,27 +173,35 @@ boozeroutdir += f"_sigma_{sigma}"
 #    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 souter = SurfaceRZFourier(
     mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-souter.x = np.load("qfmsurfaces/" + boozeroutdir + f"_32_32_1.0.npy") * LENGTH_SCALE
+souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_1.0.npy") * LENGTH_SCALE
 #sinner = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 #sinner = SurfaceRZFourier(
 #    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner = SurfaceRZFourier(
     mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner.x = np.load("qfmsurfaces/" + boozeroutdir + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
+sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
 B = bs.set_points(souter.gamma().reshape((-1, 3))).B().reshape(souter.gamma().shape)
 print("Bn", np.mean(np.sum(B * souter.normal(), axis=2)**2))
-import sys; sys.exit()
 
 B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
 meanb = np.mean(B_on_surface * norm)/np.mean(norm)
 
-for i in range(4):
-    c = coils_boozer[i].current._ScaledCurrent__basecurrent
-    c.unfix_all()
-    c.x = c.x * 5.78857 / meanb
+if apply_correction:
+    for i in range(16):
+        cur = coils_boozer[i].current._CurrentSum__current_B._ScaledCurrent__basecurrent
+        cur.x = cur.x * 5.78857 / meanb
+    for i in range(4):
+        c = coils_boozer[i].current._CurrentSum__current_A._ScaledCurrent__basecurrent
+        c.unfix_all()
+        c.x = c.x * 5.78857 / meanb
+else:
+    for i in range(4):
+        c = coils_boozer[i].current._ScaledCurrent__basecurrent
+        c.unfix_all()
+        c.x = c.x * 5.78857 / meanb
 
 print("Intial qfm value normalised", SquaredFlux(souter, bs).J())
 
@@ -248,6 +274,10 @@ paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
 outpath = f"{outdir}/particles_sampleidx_{args.sampleidx}"
 if args.zeromean:
     outpath += "_zeromean"
+if args.correction:
+    outpath += "_correction"
+    if args.adjcurr:
+        outpath += "_adjcurr"
 outpath += f"_sigma_{sigma}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}_acc.npy"
 np.save(outpath, paths_gc_h)
 def get_lost_or_not(paths):
