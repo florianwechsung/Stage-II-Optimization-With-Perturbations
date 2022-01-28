@@ -42,6 +42,7 @@ parser.add_argument("--maxmsc", type=float, default=6)
 parser.add_argument("--expquad", dest="expquad", default=False, action="store_true")
 parser.add_argument("--glob", dest="glob", default=False, action="store_true")
 parser.add_argument("--fixcurrents", dest="fixcurrents", default=False, action="store_true")
+parser.add_argument("--hybrid", dest="hybrid", default=False, action="store_true")
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -93,11 +94,11 @@ KAPPA_WEIGHT = .1
 LENGTH_CON_ALPHA = 0.1
 LENGTH_CON_WEIGHT = 1
 
-ALEN_WEIGHT = 0 if args.noalen else 1# 1e-7
+ALEN_WEIGHT = 0 if args.noalen else 1e-7
 
 MSC_WEIGHT = 1e-3
 
-outdir = f"output/tempmwell_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
+outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
     outdir += "_noalen"
 if args.expquad:
@@ -105,18 +106,18 @@ if args.expquad:
 if args.glob:
     outdir += "_nonlocal"
 
-#outdir_initial_guess = outdir + "_dashfix/"
 outdir_initial_guess = outdir + "/"
 
 if args.nsamples > 0:
     outdir += f"_samples_{args.nsamples}_sigma_{args.sigma}"
-if args.zeromean:
-    outdir += f"_zeromean_{args.zeromean}"
-if args.usedetig:
-    outdir += "_usedetig"
-if args.fixcurrents:
-    outdir += "_fixcurrents"
-outdir += "_dashfix/"
+    if args.zeromean:
+        outdir += f"_zeromean_{args.zeromean}"
+    if args.usedetig:
+        outdir += "_usedetig"
+    if args.fixcurrents:
+        outdir += "_fixcurrents"
+    if args.hybrid:
+        outdir += "_hybrid"
 
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
@@ -136,11 +137,6 @@ curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
 Jals = [UniformArclength(c) for c in base_curves]
-
-
-# Jlconstraint = CoshCurveLength(Jls, args.lengthbound, LENGTH_CON_ALPHA)
-# Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="cosh", alpha=DIST_ALPHA)
-# Jkappas = [CoshCurveCurvature(c, kappa_max=KAPPA_MAX, alpha=KAPPA_ALPHA) for c in base_curves]
 
 Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=1.)
@@ -190,6 +186,9 @@ def fun(dofs, silent=False):
     JF.x = dofs
     J = JF.J()
     dJ = JF.dJ(partials=True)
+    if args.hybrid:
+        J += Jf.J()
+        dJ += Jf.dJ(partials=True)
     for Jk in Jkappas:
         J += KAPPA_WEIGHT * Jk.J()
         dJ += KAPPA_WEIGHT * Jk.dJ(partials=True)
@@ -278,14 +277,7 @@ outeriter = 0
 PENINCREASES = 7
 MAXLOCALITER = MAXITER//PENINCREASES
 CURPENINCREASES = 0
-# for c in base_curves:
-#     for i in range(8, args.order+1):
-#         c.fix(f'xc({i})')
-#         c.fix(f'xs({i})')
-#         c.fix(f'yc({i})')
-#         c.fix(f'ys({i})')
-#         c.fix(f'zc({i})')
-#         c.fix(f'zs({i})')
+
 while MAXITER-curiter > 0 and outeriter < 10:
     # dofs = JF.x
     if outeriter > 0 and CURPENINCREASES < PENINCREASES and last_run_success:
@@ -299,15 +291,12 @@ while MAXITER-curiter > 0 and outeriter < 10:
         if Jdist.shortest_distance() < (1-1e-3)*MIN_DIST:
             logger.info("Increase weight for distance")
             JF.beta *= 3.
-        if sum([np.sqrt(J.J()) for J in Jals]) > 1e-3:
+        if ALEN_WEIGHT > 0 and sum([np.sqrt(J.J()) for J in Jals]) > 1e-3:
             logger.info("Increase weight for arclength")
             ALEN_WEIGHT *= 3.
         if sum([np.sqrt(J.J()) for J in Jmscs]) > 1e-3:
             logger.info("Increase weight for Mean Squared Curvature")
             MSC_WEIGHT *= 3.
-
-    # res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 400}, tol=0., callback=cb)
-    # res = minimize(fun, dofs, jac=True, method='BFGS', options={'maxiter': min(MAXLOCALITER, MAXITER-curiter)}, tol=1e-15, callback=cb)
 
     res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': min(MAXLOCALITER, MAXITER-curiter), 'maxcor': 200, 'maxls': 40}, tol=0., callback=cb)
     last_run_success  = np.linalg.norm(res.jac) < 1e-4 # only increase weights if the last run was a success
@@ -321,17 +310,8 @@ while MAXITER-curiter > 0 and outeriter < 10:
     JF.alpha *= 0.01
     outeriter += 1
     curves_to_vtk(curves_rep, outdir + f"curves_iter_{curiter}")
-    # for c in base_curves:
-    #     for i in range(8, args.order+1):
-    #         c.unfix(f'xc({i})')
-    #         c.unfix(f'xs({i})')
-    #         c.unfix(f'yc({i})')
-    #         c.unfix(f'ys({i})')
-    #         c.unfix(f'zc({i})')
-    #         c.unfix(f'zs({i})')
 
 
-import sys; sys.exit()
 def approx_H(x, eps=1e-4):
     n = x.size
     H = np.zeros((n, n))

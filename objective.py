@@ -29,7 +29,6 @@ def sum_across_comm(derivative, comm):
     return Derivative(newdict)
 
 
-
 @jit
 def curve_msc_pure(kappa, gammadash):
     """
@@ -99,13 +98,6 @@ class QuadraticCurveLength(Optimizable):
         return 2*self.alpha*self.alpha*np.maximum(sumlen-self.threshold, 0)*dsumlen
 
 
-# @jit
-# def curve_arclengthvariation_pure(l, indices):
-#     """
-#     This function is used in a Python+Jax implementation of the curve arclength variation.
-#     """
-#     return jnp.var(l[indices])
-
 @jit
 def curve_arclengthvariation_pure(l, mat):
     """
@@ -119,15 +111,7 @@ class UniformArclength():
     def __init__(self, curve):
         self.curve = curve
         nquadpoints = len(curve.quadpoints)
-        # nquadpoints_constraint = curve.full_dof_size//3 - 1
-        # indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint, endpoint=False)).astype(int)
-        # self.indices = indices
-        # self.thisgrad = jit(lambda l: grad(lambda x: curve_arclengthvariation_pure(x, indices))(l))
-
-        # nquadpoints_constraint = curve.full_dof_size//3 - 10
-        nquadpoints_constraint = 2
-        # nquadpoints_constraint = curve.full_dof_size//3 - 0
-        # nquadpoints_constraint = curve.full_dof_size//3 + 1
+        nquadpoints_constraint = curve.full_dof_size//3 - 1
         indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
         mat = np.zeros((nquadpoints_constraint, nquadpoints))
         for i in range(nquadpoints_constraint):
@@ -211,10 +195,6 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
             x[2*n:2*n+k] += 0.01 * np.random.standard_normal(size=(k, ))
             c.x = x
 
-    # for c in base_curves:
-    #     c.set("zc(0)", 0.)
-    #     c.fix("zc(0)")
-
     base_currents = []
     for i in range(ncoils):
         curr = Current(1.)
@@ -236,7 +216,6 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     seeds_sys = SeedSequence(stoch_seed).spawn(nsamples)
     seeds_sta = SeedSequence(99999+stoch_seed).spawn(nsamples)
-    # Jfs = []
 
     coils_fil_pert = []
     for j in range(*parallel_loop_bounds(comm, nsamples)):
@@ -259,11 +238,6 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
                     c = coils_perturbed_rep[i*NFIL + k]
                     coils_perturbed_rep[i*NFIL + k] = Coil(
                         CurvePerturbed(c.curve, pert, zero_mean=zero_mean), c.current)
-        # full_curves_perturbed = [c.curve for c in coils_perturbed_rep]
-        # curves_to_vtk(fil_curves, "/tmp/fil_curves")
-        # curves_to_vtk(base_curves_perturbed, f"/tmp/base_curves_perturbed_{j}")
-        # curves_to_vtk(full_curves_perturbed, f"/tmp/full_curves_perturbed_{j}")
-        # Jfs.append(SquaredFlux(s, bs))
         coils_fil_pert.append(coils_perturbed_rep)
 
     return base_curves, base_currents, coils_fil, coils_fil_pert
