@@ -17,7 +17,6 @@ import jax.numpy as jnp
 from jax import grad, vjp
 from mpi4py import MPI
 
-
 def sum_across_comm(derivative, comm):
     newdict = {}
     for k in derivative.data.keys():
@@ -36,6 +35,7 @@ def curve_msc_pure(kappa, gammadash):
     """
     arc_length = jnp.linalg.norm(gammadash, axis=1)
     return jnp.mean(kappa**2 * arc_length)/jnp.mean(arc_length)
+
 
 class MeanSquareCurvature(Optimizable):
 
@@ -59,24 +59,6 @@ class MeanSquareCurvature(Optimizable):
         deriv = self.curve.dkappa_by_dcoeff_vjp(grad0) + self.curve.dgammadash_by_dcoeff_vjp(grad1)
         fak = max(self.msc()-self.threshold, 0.)
         return fak * deriv
-
-class CoshCurveLength(Optimizable):
-
-    def __init__(self, Jls, threshold, alpha):
-        Optimizable.__init__(self, x0=np.asarray([]), depends_on=Jls)
-        self.Jls = Jls
-        self.threshold = threshold
-        self.alpha = alpha
-
-    def J(self):
-        sumlen = sum([J.J() for J in self.Jls])
-        return (np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)**2
-
-    @derivative_dec
-    def dJ(self):
-        sumlen = sum([J.J() for J in self.Jls])
-        dsumlen = sum([J.dJ(partials=True) for J in self.Jls], start=Derivative({}))
-        return 2*self.alpha*(np.cosh(self.alpha*np.maximum(sumlen-self.threshold, 0))-1)*np.sinh(self.alpha*np.maximum(sumlen-self.threshold, 0))*dsumlen
 
 
 class QuadraticCurveLength(Optimizable):

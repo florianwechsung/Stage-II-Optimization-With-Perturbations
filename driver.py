@@ -4,9 +4,9 @@ from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.geo.curve import curves_to_vtk
 from simsopt.field.biotsavart import BiotSavart
 from simsopt.field.coil import Current
-from simsopt.geo.curveobjectives import CurveLength, CoshCurveCurvature
+from simsopt.geo.curveobjectives import CurveLength
 from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
-from objective import create_curves, CoshCurveLength, QuadraticCurveLength, UniformArclength, MeanSquareCurvature
+from objective import create_curves, QuadraticCurveLength, UniformArclength, MeanSquareCurvature
 from scipy.optimize import minimize
 import argparse
 import os
