@@ -119,6 +119,8 @@ if args.nsamples > 0:
     if args.hybrid:
         outdir += "_hybrid"
 
+outdir += "/"
+
 os.makedirs(outdir, exist_ok=True)
 set_file_logger(outdir + "log.txt")
 
