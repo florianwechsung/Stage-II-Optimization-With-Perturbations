@@ -90,11 +90,11 @@ def curve_arclengthvariation_pure(l, mat):
 
 class UniformArclength():
 
-    def __init__(self, curve):
+    def __init__(self, curve, start=0):
         self.curve = curve
         nquadpoints = len(curve.quadpoints)
         nquadpoints_constraint = curve.full_dof_size//3 - 1
-        indices = np.floor(np.linspace(0, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
+        indices = np.floor(np.linspace(start, nquadpoints, nquadpoints_constraint+1, endpoint=True)).astype(int)
         mat = np.zeros((nquadpoints_constraint, nquadpoints))
         for i in range(nquadpoints_constraint):
             mat[i, indices[i]:indices[i+1]] = 1/(indices[i+1]-indices[i])

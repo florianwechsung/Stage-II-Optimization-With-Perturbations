@@ -31,13 +31,18 @@ IG=$SLURM_ARRAY_TASK_ID
 ORDER=16
 
 
-MAXL=18
+#MAXL=18
 #MAXL=20
 #MAXL=22
 #MAXL=24
+MAXL=26
 
 mkdir -p logs
 mkdir -p output
 
-python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --glob
-python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --glob
+python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --noalen
+python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --noalen
+python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 0
+python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1
+python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 0
+python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1

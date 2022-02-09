@@ -43,6 +43,7 @@ parser.add_argument("--expquad", dest="expquad", default=False, action="store_tr
 parser.add_argument("--glob", dest="glob", default=False, action="store_true")
 parser.add_argument("--fixcurrents", dest="fixcurrents", default=False, action="store_true")
 parser.add_argument("--hybrid", dest="hybrid", default=False, action="store_true")
+parser.add_argument("--alstart", type=int, default=0)
 args = parser.parse_args()
 if args.nsamples == 0:
     args.sigma = 0.
@@ -101,6 +102,9 @@ MSC_WEIGHT = 1e-3
 outdir = f"output/well_{args.well}_lengthbound_{args.lengthbound}_kap_{args.maxkappa}_msc_{args.maxmsc}_dist_{args.mindist}_fil_{args.fil}_ig_{args.ig}_order_{args.order}"
 if args.noalen:
     outdir += "_noalen"
+else:
+    outdir += f"_alstart_{args.alstart}"
+
 if args.expquad:
     outdir += "_expquad"
 if args.glob:
@@ -138,7 +142,7 @@ curves_rep_no_fil = [curves_rep[NFIL//2 + i*NFIL] for i in range(len(curves_rep)
 curves_to_vtk(curves_rep, outdir + "curves_init")
 
 Jls = [CurveLength(c) for c in base_curves]
-Jals = [UniformArclength(c) for c in base_curves]
+Jals = [UniformArclength(c, start=args.alstart) for c in base_curves]
 
 Jlconstraint = QuadraticCurveLength(Jls, args.lengthbound, 0.1*LENGTH_CON_ALPHA)
 Jdist = MinimumDistance(curves_rep_no_fil, MIN_DIST, penalty_type="quadratic", alpha=1.)

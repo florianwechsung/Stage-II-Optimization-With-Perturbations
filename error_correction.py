@@ -195,4 +195,3 @@ if args.sym:
     outname += "_sym"
 np.savetxt("corrections/" + outname + ".txt", JF.x)
 print(outname)
-

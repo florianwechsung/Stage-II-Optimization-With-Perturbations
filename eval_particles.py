@@ -62,6 +62,9 @@ outdirs = [
         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/temp_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
+        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_samples_4096_sigma_0.001_hybrid_dashfix/",
+
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
@@ -154,32 +157,33 @@ if apply_correction:
 
 
 #qfmfilename = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
-qfmfilename = outdir.replace("/", "_")[:-1] + f"_qfm_seed_{sampleidx}"
+qfmfilename = outdir.replace("/", "_")[:-1] + f"_qfm_{sampleidx}"
 if args.zeromean:
     qfmfilename += "_zeromean"
 if args.sym:
     qfmfilename += "_sym"
-qfmfilename += f"_sigma_{sigma}"
-if args.correction:
-    qfmfilename += f"_correction"
-    if args.adjcurr:
-        qfmfilename += f"_adjcurr"
+if sigma > 0:
+    qfmfilename += f"_sigma_{sigma}"
+    if args.correction:
+        qfmfilename += f"_correction"
+        if args.adjcurr:
+            qfmfilename += f"_adjcurr"
 
 
 
 #souter = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-#souter = SurfaceRZFourier(
-#    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 souter = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+#souter = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_1.0.npy") * LENGTH_SCALE
 #sinner = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-#sinner = SurfaceRZFourier(
-#    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+#sinner = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
 B = bs.set_points(souter.gamma().reshape((-1, 3))).B().reshape(souter.gamma().shape)
@@ -220,7 +224,7 @@ def skip(rs, phis, zs):
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
-nparticles = 2000
+nparticles = 25000
 
 degree = 5
 print("n =", n, ", degree =", degree)
