@@ -224,24 +224,25 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     return base_curves, base_currents, coils_fil, coils_fil_pert
 
-def add_correction_to_coils(coils):
-    return [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils]
-
-def fix_correction_optimizables(coils):
-    for c in coils:
-        assert isinstance(c.curve, CurveCorrected)
-        c.curve.fix_all()
-        c.current._CurrentSum__current_B._ScaledCurrent__basecurrent.fix_all()
-
-def unfix_correction_optimizables(coils, unfix_currents=True, unfix_position=False):
-    for c in coils:
-        assert isinstance(c.curve, CurveCorrected)
-        if unfix_position:
-            c.curve.unfix_all()
-        if unfix_currents:
-            c.current._CurrentSum__current_B._ScaledCurrent__basecurrent.unfix_all()
+def add_correction_to_coils(coils, correction_level):
+    if correction_level == 0:
+        return coils
+    elif correction_level == 1: # fix curve and current dofs, add curve correction
+        fix_all_dofs(coils)
+        return [Coil(CurveCorrected(co.curve), co.current) for co in coils]
+    elif correction_level == 2: # fix curve dofs, add curve correction, leave current dofs free
+        for c in coils:
+            fix_all_dofs(c.curve)
+        return [Coil(CurveCorrected(co.curve), co.current) for co in coils]
+    elif correction_level == 3: # fix curve and current dofs, add curve and current correction
+        fix_all_dofs(coils)
+        return [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils]
+    else:
+        raise NotImplementedError()
 
 def fix_all_dofs(optims):
+    if not isinstance(optims, list):
+        optims = [optims]
     for o in optims:
         for a in o._get_ancestors():
             a.fix_all()

@@ -12,7 +12,7 @@ from simsopt.geo.qfmsurface import QfmSurface
 from simsopt.geo.surfaceobjectives import QfmResidual, ToroidalFlux, Area, Volume
 from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.field.coil import Current, Coil, ScaledCurrent, coils_via_symmetries
-from objective import create_curves, unfix_correction_optimizables, fix_correction_optimizables, fix_all_dofs, add_correction_to_coils
+from objective import create_curves, add_correction_to_coils
 from scipy.optimize import minimize
 import argparse
 import os
@@ -32,8 +32,10 @@ parser.add_argument("--sym", dest="sym", default=False, action="store_true")
 parser.add_argument("--sampleidx", type=int, default=-1)
 parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
-parser.add_argument("--adjcurr", dest="adjcurr", default=False, action="store_true")
+parser.add_argument("--correctionlevel", type=int, default=1)
 args = parser.parse_args()
+if args.correctionlevel == 0:
+    quit()
 
 print(args)
 if args.sampleidx == -1:
@@ -76,8 +78,9 @@ if sampleidx is None:
 else:
     coils = coils_fil_pert[sampleidx]
 
-coils_corrected = add_correction_to_coils(coils)
-fix_correction_optimizables(coils_corrected)
+bs = BiotSavart(coils)
+bs.x = x
+coils_corrected = add_correction_to_coils(coils, args.correctionlevel)
 curves_corrected = [c.curve for c in coils_corrected]
 
 nphi = 128
@@ -133,7 +136,7 @@ logger.info("""
 f = fun
 dofs = JF.x
 print(dofs.shape)
-dofs = x
+# dofs = x
 f(dofs)
 # import time
 # import cProfile
@@ -164,10 +167,6 @@ for eps in [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]:
 # import sys; sys.exit()
 f(dofs)
 print(len(dofs))
-fix_all_dofs(coils)
-dofs = JF.x
-print(len(dofs))
-unfix_correction_optimizables(coils_corrected, unfix_currents=args.adjcurr, unfix_position=True)
 
 dofs = JF.x
 print(len(dofs))
@@ -181,8 +180,7 @@ cb = None
 res = minimize(fun, dofs, jac=True, method='L-BFGS-B', options={'maxfun': 200, 'maxcor': 200, 'maxls': 40}, tol=0., callback=cb)
 
 curves_to_vtk([c.curve for c in coils_corrected], "/tmp/curves_corrected")
-for c in coils_corrected:
-    print(c.current._CurrentSum__current_A.get_value(), c.current._CurrentSum__current_B.get_value())
+print(JF.x.shape)
 
 # import matplotlib.pyplot as plt
 # idx = 2
@@ -192,10 +190,9 @@ for c in coils_corrected:
 # plt.show()
 # import IPython; IPython.embed()
 # import sys; sys.exit()
-outname = outdir.replace("/", "_")[:-1] + "_correction_sigma_{args.sigma}_sampleidx_{sampleidx}"
-if args.adjcurr:
-    outname += "_adjcurr"
+outname = outdir.replace("/", "_")[:-1] + f"_correction_sigma_{args.sigma}_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}"
 if args.sym:
     outname += "_sym"
 np.savetxt("corrections/" + outname + ".txt", JF.x)
+print(outname)
 
