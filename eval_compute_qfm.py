@@ -9,7 +9,7 @@ from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
 from simsopt.geo.qfmsurface import QfmSurface
 from simsopt.geo.surfaceobjectives import QfmResidual, ToroidalFlux, Area, Volume
-from objective import create_curves, fix_all_dofs, unfix_correction_optimizables, fix_correction_optimizables, add_correction_to_coils
+from objective import create_curves, get_outdir, add_correction_to_coils
 from scipy.optimize import minimize
 import argparse
 import numpy as np
@@ -22,8 +22,7 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--flux", type=float, default=1.0)
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
-parser.add_argument("--correction", dest="correction", default=False, action="store_true") 
-parser.add_argument("--adjcurr", dest="adjcurr", default=False, action="store_true") 
+parser.add_argument("--correctionlevel", type=int, default=0)
 args = parser.parse_args()
 
 if args.sampleidx == -1:
@@ -32,38 +31,10 @@ else:
     sampleidx = args.sampleidx
 if not args.well:
     filename = 'input.LandremanPaul2021_QA'
-    outdirs = [
-        "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-        "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-        "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-        "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad/",
-    ]
 else:
     filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
-    outdirs = [
-            "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-            "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-            "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
-            "output/temp_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
-            "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_samples_4096_sigma_0.001_hybrid_dashfix/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
-            "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
-    ]
-    #outdirs = [
-    #        "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-    #        "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad_nonlocal_dashfix/",
-    #        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad_nonlocal_dashfix/",
-    #        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-    #        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_4096_sigma_0.001_usedetig_dashfix/",
-    #        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
-    #        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
-    #        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
-    #        ]
+
+outdir = get_outdir(args.well, args.outdiridx)
 
 
 
@@ -71,9 +42,10 @@ else:
 
 
 initial_guess = None
-# initial_guess = "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/qfm_None_flux_1.0.npy"
-initial_guess = f"output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/qfm_None_flux_{args.flux}.npy"
-label_appendix = f"_{args.flux}"
+if not args.well:
+    initial_guess = f"qfmsurfaces/output_well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
+else:
+    initial_guess = f"qfmsurfaces/output_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
 
 fil = 0
 nfp = 2
@@ -82,7 +54,6 @@ nphi = 100
 ntheta = 100
 sigma = args.sigma
 
-outdir = outdirs[args.outdiridx]
 x = np.loadtxt(outdir + "xmin.txt")
 
 nsamples = 0 if sampleidx is None else sampleidx + 1
@@ -147,43 +118,22 @@ print(len(sq.get_dofs()), "vs", nphi*ntheta)
 bs = BiotSavart(coils_qfm)
 bs.x = x
 
-if args.correction:
-    fix_all_dofs(coils_qfm)
-    coils_qfm = add_correction_to_coils(coils_qfm)
-    fix_correction_optimizables(coils_qfm)
-    unfix_correction_optimizables(coils_qfm, unfix_currents=args.adjcurr, unfix_position=True)
+if (sampleidx is not None) and args.correctionlevel > 0:
+    coils_qfm = add_correction_to_coils(coils_qfm, args.correctionlevel)
     bs = BiotSavart(coils_qfm)
     corrname = "corrections/" \
         + outdir.replace("/", "_")[:-1] \
-        + f"_correction_sigma_{sigma}_sampleidx_{sampleidx}"
-    if args.adjcurr:
-        corrname += "_adjcurr"
+        + f"_correction_sigma_{args.sigma}_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}"
     y = np.loadtxt(corrname + ".txt")
     bs.x = y
 
 
 
-if sampleidx is None:
-    outname = outdir + f"qfm_{sampleidx}"
-else:
-    outname = outdir + f"qfm_seed_{sampleidx}"
-    if args.zeromean:
-        outname += "_zeromean"
-    if args.sym:
-        outname += "_sym"
+outname = outdir + f"qfm_flux_{args.flux}"
+if sampleidx is not None:
+    outname += f"_sampleidx_{sampleidx}"
     outname += f"_sigma_{sigma}"
-    if args.correction:
-        outname += f"_correction"
-        if args.adjcurr:
-            outname += f"_adjcurr"
-
-
-
-outname += "_32_32" + label_appendix
-# for i in range(16):
-#     # np.savetxt("outputformatt/" + outname.replace("/", "_") + f"_curve_{i}.txt", coils_qfm[i].curve.full_x)
-#     np.savetxt("outputformatt/" + outname.replace("/", "_") + f"_curve_{i}_xyz.txt", coils_qfm[i].curve.gamma())
-#     np.savetxt("outputformatt/" + outname.replace("/", "_") + f"_current_{i}.txt", coils_qfm[i].current.full_x)
+    outname += f"_correctionlevel_{args.correctionlevel}"
 
 ar = Area(sq)
 ar_target = ar.J()
