@@ -8,8 +8,10 @@ from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
 from simsopt.geo.curvecorrected import CurveCorrected
 from simsopt.field.coil import Current, Coil, ScaledCurrent
-from objective import create_curves, fix_all_dofs, unfix_correction_optimizables, fix_correction_optimizables, add_correction_to_coils
+from objective import create_curves, add_correction_to_coils, get_outdir
 
+import os
+os.makedirs("losses", exist_ok=True)
 
 from simsopt.field.tracing import trace_particles_starting_on_surface, SurfaceClassifier, \
     particles_to_vtk, LevelsetStoppingCriterion, plot_poincare_data
@@ -35,10 +37,8 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--resolution", type=int, default=75)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
-parser.add_argument("--sym", dest="sym", default=False, action="store_true")
-parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true") 
-parser.add_argument("--correction", dest="correction", default=False, action="store_true") 
-parser.add_argument("--adjcurr", dest="adjcurr", default=False, action="store_true") 
+parser.add_argument("--correctionlevel", type=int, default=0)
+parser.add_argument("--nparticles", type=int, default=2000)
 args = parser.parse_args()
 print(args, flush=True)
 
@@ -47,39 +47,8 @@ if args.sampleidx == -1:
 else:
     sampleidx = args.sampleidx
 filename = 'input.LandremanPaul2021_QA'
-outdirs = [
-    "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-    "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-    "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-    "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad/",
-]
 
-filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
-outdirs = [
-        "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-        "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
-        "output/temp_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
-        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_samples_4096_sigma_0.001_hybrid_dashfix/",
-
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.002_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
-]
-# outdirs = [
-#         "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-#         "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad_nonlocal_dashfix/",
-#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad_nonlocal_dashfix/",
-#         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_dashfix/",
-#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_4096_sigma_0.001_usedetig_dashfix/",
-#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_4096_sigma_0.001_zeromean_True_usedetig_dashfix/",
-#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad_nonlocal_samples_512_sigma_0.001_usedetig_fixcurrents_dashfix/",
-#         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_expquad_nonlocal_samples_512_sigma_0.001_zeromean_True_usedetig_fixcurrents_dashfix/",
-#         ]
+outdir = get_outdir(args.well, args.outdiridx)
 
 
 LENGTH_SCALE = 10.1515
@@ -108,8 +77,8 @@ thetas = np.linspace(0, 1., ntheta, endpoint=False)
 sigma = args.sigma
 nsamples = 0 if sampleidx is None else sampleidx + 1
 base_curves, base_currents, coils_fil, coils_fil_pert = create_curves(
-    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, comm=MPI.COMM_SELF, sym=args.sym,
-    zero_mean=args.zeromean)
+    fil=fil, ig=0, nsamples=nsamples, stoch_seed=1, sigma=sigma, order=16, comm=MPI.COMM_SELF, sym=False,
+    zero_mean=False)
 # for i in list(range(nsamples)):
 # for i in [None] + list(range(nsamples)):
 if sampleidx is None:
@@ -117,7 +86,6 @@ if sampleidx is None:
 else:
     coils_boozer = coils_fil_pert[sampleidx]
 
-outdir = outdirs[args.outdiridx]
 x = np.loadtxt(outdir + "xmin.txt")
 
 bs = BiotSavart(coils_boozer)
@@ -136,18 +104,12 @@ if sampleidx is not None:
         for i in range(4):
             coils_boozer[i].curve.sample *= LENGTH_SCALE
 
-apply_correction = args.correction
-if apply_correction:
-    fix_all_dofs(coils_boozer)
-    coils_boozer = add_correction_to_coils(coils_boozer)
-    fix_correction_optimizables(coils_boozer)
-    unfix_correction_optimizables(coils_boozer, unfix_currents=args.adjcurr, unfix_position=True)
+if (sampleidx is not None) and args.correctionlevel > 0:
+    coils_boozer = add_correction_to_coils(coils_boozer, args.correctionlevel)
     bs = BiotSavart(coils_boozer)
     corrname = "corrections/" \
         + outdir.replace("/", "_")[:-1] \
-        + f"_correction_sigma_{sigma}_sampleidx_{sampleidx}"
-    if args.adjcurr:
-        corrname += "_adjcurr"
+        + f"_correction_sigma_{args.sigma}_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}"
     y = np.loadtxt(corrname + ".txt")
     bs.x = y
     for i in range(16):
@@ -155,21 +117,9 @@ if apply_correction:
        cx[:3] *= LENGTH_SCALE
        coils_boozer[i].curve.x = cx
 
-
-#qfmfilename = outdir.replace("/", "_").replace(".", "p")[:-1] + f"_seed_{sampleidx}"
-qfmfilename = outdir.replace("/", "_")[:-1] + f"_qfm_{sampleidx}"
-if args.zeromean:
-    qfmfilename += "_zeromean"
-if args.sym:
-    qfmfilename += "_sym"
-if sigma > 0:
-    qfmfilename += f"_sigma_{sigma}"
-    if args.correction:
-        qfmfilename += f"_correction"
-        if args.adjcurr:
-            qfmfilename += f"_adjcurr"
-
-
+qfmfilename = outdir.replace("/", "_")[:-1] + f"qfm"
+if sampleidx is not None:
+    qfmfilename += f"_sampleidx_{sampleidx}_sigma_{sigma}_correctionlevel_{correctionlevel}"
 
 #souter = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
@@ -177,14 +127,14 @@ souter = SurfaceRZFourier(
     mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 #souter = SurfaceRZFourier(
 #    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_1.0.npy") * LENGTH_SCALE
+souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_1.0.npy") * LENGTH_SCALE
 #sinner = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner = SurfaceRZFourier(
     mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 #sinner = SurfaceRZFourier(
 #    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_32_32_0.{args.spawnidx}.npy") * LENGTH_SCALE
+sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
 B = bs.set_points(souter.gamma().reshape((-1, 3))).B().reshape(souter.gamma().shape)
 print("Bn", np.mean(np.sum(B * souter.normal(), axis=2)**2))
@@ -224,7 +174,7 @@ def skip(rs, phis, zs):
 rs = np.linalg.norm(souter.gamma()[:, :, 0:2], axis=2)
 zs = souter.gamma()[:, :, 2]
 
-nparticles = 25000
+nparticles = args.nparticles
 
 degree = 5
 print("n =", n, ", degree =", degree)
@@ -275,15 +225,8 @@ compute_error_on_surface(souter)
 print("", flush=True)
 
 paths_gc_h = trace_particles(bsh, 'bsh', 'gc_vac')
-outpath = f"{outdir}/particles_sampleidx_{args.sampleidx}"
-if args.zeromean:
-    outpath += "_zeromean"
-if args.correction:
-    outpath += "_correction"
-    if args.adjcurr:
-        outpath += "_adjcurr"
-outpath += f"_sigma_{sigma}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}_acc.npy"
-np.save(outpath, paths_gc_h)
+outname = outdir.replace("/", "_")[:-1] + f"_losses_sigma_{sigma}_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}_spawnidx_{args.spawnidx}_n_{args.resolution}_seed_{seed}"
+np.save("losses/" + outname + ".txt", paths_gc_h)
 def get_lost_or_not(paths):
     return np.asarray([p[-1, 0] < TMAX-1e-15 for p in paths]).astype(int)
-print(np.mean(get_lost_or_not(paths_gc_h)))
+print(f"{np.mean(get_lost_or_not(paths_gc_h))*100}%")

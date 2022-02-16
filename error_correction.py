@@ -12,7 +12,7 @@ from simsopt.geo.qfmsurface import QfmSurface
 from simsopt.geo.surfaceobjectives import QfmResidual, ToroidalFlux, Area, Volume
 from simsopt.objectives.fluxobjective import SquaredFlux, CoilOptObjective
 from simsopt.field.coil import Current, Coil, ScaledCurrent, coils_via_symmetries
-from objective import create_curves, add_correction_to_coils
+from objective import create_curves, add_correction_to_coils, get_outdir
 from scipy.optimize import minimize
 import argparse
 import os
@@ -34,7 +34,7 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--correctionlevel", type=int, default=1)
 args = parser.parse_args()
-if args.correctionlevel == 0:
+if args.correctionlevel == 0 or args.sampleidx == -1:
     quit()
 
 print(args)
@@ -44,22 +44,11 @@ else:
     sampleidx = args.sampleidx
 if not args.well:
     filename = 'input.LandremanPaul2021_QA'
-    outdirs = [
-        "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-        "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-        "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-        "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_expquad/",
-    ]
 else:
     filename = "input.20210728-01-010_QA_nfp2_A6_magwell_weight_1.00e+01_rel_step_3.00e-06_centered"
-    outdirs = [
-        "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad/",
-        "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_expquad/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_expquad/",
-        "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_expquad/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_expquad_samples_4096_sigma_0.0005_usedetig_dashfix/",
-        "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_expquad_samples_4096_sigma_0.001_usedetig_dashfix/",
-    ]
+
+outdir = get_outdir(args.well, args.outdiridx)
+
 
 
 fil = 0
@@ -67,7 +56,6 @@ nfp = 2
 
 sigma = args.sigma
 
-outdir = outdirs[args.outdiridx]
 x = np.loadtxt(outdir + "xmin.txt")
 
 nsamples = 0 if sampleidx is None else sampleidx + 1
@@ -193,5 +181,7 @@ print(JF.x.shape)
 outname = outdir.replace("/", "_")[:-1] + f"_correction_sigma_{args.sigma}_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}"
 if args.sym:
     outname += "_sym"
+
+os.makedirs("corrections", exist_ok=True)
 np.savetxt("corrections/" + outname + ".txt", JF.x)
 print(outname)
