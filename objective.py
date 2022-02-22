@@ -224,18 +224,21 @@ def create_curves(fil=0, ig=0, nsamples=0, stoch_seed=0, sigma=1e-3, zero_mean=F
 
     return base_curves, base_currents, coils_fil, coils_fil_pert
 
-def add_correction_to_coils(coils, correction_level):
+def add_correction_to_coils(coils, correction_level, already_fixed=False):
     if correction_level == 0:
         return coils
     elif correction_level == 1: # fix curve and current dofs, add curve correction
-        fix_all_dofs(coils)
+        if not already_fixed:
+            fix_all_dofs(coils)
         return [Coil(CurveCorrected(co.curve), co.current) for co in coils]
     elif correction_level == 2: # fix curve dofs, add curve correction, leave current dofs free
-        for c in coils:
-            fix_all_dofs(c.curve)
+        if not already_fixed:
+            for c in coils:
+                fix_all_dofs(c.curve)
         return [Coil(CurveCorrected(co.curve), co.current) for co in coils]
     elif correction_level == 3: # fix curve and current dofs, add curve and current correction
-        fix_all_dofs(coils)
+        if not already_fixed:
+            fix_all_dofs(coils)
         return [Coil(CurveCorrected(co.curve), co.current + ScaledCurrent(Current(0.), 1e5)) for co in coils]
     else:
         raise NotImplementedError()
@@ -254,6 +257,8 @@ def get_outdir(well, idx):
             "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_3_order_16_alstart_0_expquad/",
             "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_alstart_0_expquad/",
             "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_alstart_0_expquad/",
+            "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_alstart_0_expquad_samples_4096_sigma_0.001/",
+            "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
             "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
             "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
 
@@ -264,6 +269,8 @@ def get_outdir(well, idx):
             "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad/",
             "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_alstart_0_expquad/",
             "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_alstart_0_expquad/",
+            "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
+            "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_alstart_0_expquad_samples_4096_sigma_0.001/",
             "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_alstart_0_expquad_samples_4096_sigma_0.001/",
             "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
 
