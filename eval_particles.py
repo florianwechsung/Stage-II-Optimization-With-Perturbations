@@ -37,6 +37,7 @@ parser.add_argument("--outdiridx", type=int, default=0)
 parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--resolution", type=int, default=75)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
+parser.add_argument("--sym", dest="sym", default=False, action="store_true")
 parser.add_argument("--correctionlevel", type=int, default=0)
 parser.add_argument("--nparticles", type=int, default=2000)
 args = parser.parse_args()
@@ -117,9 +118,11 @@ if (sampleidx is not None) and args.correctionlevel > 0:
        cx[:3] *= LENGTH_SCALE
        coils_boozer[i].curve.x = cx
 
-qfmfilename = outdir.replace("/", "_")[:-1] + f"qfm"
+qfmfilename = outdir.replace("/", "_") + f"qfm"
 if sampleidx is not None:
-    qfmfilename += f"_sampleidx_{sampleidx}_sigma_{sigma}_correctionlevel_{correctionlevel}"
+    qfmfilename += f"_sampleidx_{sampleidx}"
+    qfmfilename += f"_sigma_{sigma}"
+    qfmfilename += f"_correctionlevel_{args.correctionlevel}"
 
 #souter = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
@@ -143,14 +146,15 @@ B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
 meanb = np.mean(B_on_surface * norm)/np.mean(norm)
 
-if apply_correction:
-    for i in range(16):
-        cur = coils_boozer[i].current._CurrentSum__current_B._ScaledCurrent__basecurrent
-        cur.x = cur.x * 5.78857 / meanb
+if args.correctionlevel > 0:
     for i in range(4):
         c = coils_boozer[i].current._CurrentSum__current_A._ScaledCurrent__basecurrent
         c.unfix_all()
         c.x = c.x * 5.78857 / meanb
+    if args.correctionlevel == 2:
+        for i in range(16):
+            cur = coils_boozer[i].current._CurrentSum__current_B._ScaledCurrent__basecurrent
+            cur.x = cur.x * 5.78857 / meanb
 else:
     for i in range(4):
         c = coils_boozer[i].current._ScaledCurrent__basecurrent
