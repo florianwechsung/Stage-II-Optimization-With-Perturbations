@@ -8,14 +8,14 @@ from simsopt.geo.boozersurface import BoozerSurface
 from simsopt.geo.surfaceobjectives import boozer_surface_residual, ToroidalFlux, Area
 from simsopt.geo.curvecorrected import CurveCorrected
 from simsopt.field.coil import Current, Coil, ScaledCurrent
-from objective import create_curves, add_correction_to_coils, get_outdir
+from objective import create_curves, add_correction_to_coils, get_outdir, minor_radius
 
 import os
 os.makedirs("losses", exist_ok=True)
 
 from simsopt.field.tracing import trace_particles_starting_on_surface, SurfaceClassifier, \
     particles_to_vtk, LevelsetStoppingCriterion, plot_poincare_data
-from simsopt.util.constants import FUSION_ALPHA_PARTICLE_ENERGY, ALPHA_PARTICLE_MASS, ALPHA_PARTICLE_CHARGE
+from simsopt.util.constants import FUSION_ALPHA_PARTICLE_ENERGY, ALPHA_PARTICLE_MASS, ALPHA_PARTICLE_CHARGE, ONE_EV
 
 import logging
 logging.basicConfig()
@@ -52,9 +52,6 @@ filename = 'input.LandremanPaul2021_QA'
 outdir = get_outdir(args.well, args.outdiridx)
 
 
-LENGTH_SCALE = 10.1515
-B_SCALE = 5.78857
-
 fil = 0
 
 nphi = 100
@@ -89,12 +86,39 @@ else:
 
 x = np.loadtxt(outdir + "xmin.txt")
 
+qfmfilename = outdir.replace("/", "_") + f"qfm"
+if sampleidx is not None:
+    qfmfilename += f"_sampleidx_{sampleidx}"
+    qfmfilename += f"_sigma_{sigma}"
+    qfmfilename += f"_correctionlevel_{args.correctionlevel}"
+
+#souter = SurfaceXYZTensorFourier(
+#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+souter = SurfaceRZFourier(
+    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+#souter = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_1.0.npy")
+#sinner = SurfaceXYZTensorFourier(
+#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+sinner = SurfaceRZFourier(
+    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+#sinner = SurfaceRZFourier(
+#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
+sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_0.{args.spawnidx}.npy")
+LENGTH_SCALE = 1.7/minor_radius(souter)
+print("LENGTH_SCALE", LENGTH_SCALE)
+souter.x = LENGTH_SCALE * souter.x
+sinner.x = LENGTH_SCALE * sinner.x
+
+
 bs = BiotSavart(coils_boozer)
 bs.x = x
 
 
 for i in range(4):
     coils_boozer[i].curve.x = coils_boozer[i].curve.x * LENGTH_SCALE
+
 if sampleidx is not None:
     if not args.sym:
         for i in range(4):
@@ -118,26 +142,6 @@ if (sampleidx is not None) and args.correctionlevel > 0:
        cx[:3] *= LENGTH_SCALE
        coils_boozer[i].curve.x = cx
 
-qfmfilename = outdir.replace("/", "_") + f"qfm"
-if sampleidx is not None:
-    qfmfilename += f"_sampleidx_{sampleidx}"
-    qfmfilename += f"_sigma_{sigma}"
-    qfmfilename += f"_correctionlevel_{args.correctionlevel}"
-
-#souter = SurfaceXYZTensorFourier(
-#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-souter = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
-#souter = SurfaceRZFourier(
-#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_1.0.npy") * LENGTH_SCALE
-#sinner = SurfaceXYZTensorFourier(
-#    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
-#sinner = SurfaceRZFourier(
-#    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
-sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_0.{args.spawnidx}.npy") * LENGTH_SCALE
 
 B = bs.set_points(souter.gamma().reshape((-1, 3))).B().reshape(souter.gamma().shape)
 print("Bn", np.mean(np.sum(B * souter.normal(), axis=2)**2))
@@ -146,21 +150,10 @@ B_on_surface = bs.set_points(souter.gamma().reshape((-1, 3))).AbsB()
 norm = np.linalg.norm(souter.normal().reshape((-1, 3)), axis=1)
 meanb = np.mean(B_on_surface * norm)/np.mean(norm)
 
-if args.correctionlevel > 0:
-    for i in range(4):
-        c = coils_boozer[i].current._CurrentSum__current_A._ScaledCurrent__basecurrent
-        c.unfix_all()
-        c.x = c.x * 5.78857 / meanb
-    if args.correctionlevel == 2:
-        for i in range(16):
-            cur = coils_boozer[i].current._CurrentSum__current_B._ScaledCurrent__basecurrent
-            cur.x = cur.x * 5.78857 / meanb
-else:
-    for i in range(4):
-        c = coils_boozer[i].current._ScaledCurrent__basecurrent
-        c.unfix_all()
-        c.x = c.x * 5.78857 / meanb
-
+# rescale things
+FIELD_SCALE = (5.86/meanb)
+bs = FIELD_SCALE * bs
+ 
 print("Intial qfm value normalised", SquaredFlux(souter, bs).J())
 
 sc_particle = SurfaceClassifier(souter, h=0.1, p=2)
@@ -192,7 +185,26 @@ TMAX = 2e-1
 
 seed = args.seed
 tol = 1e-11
+
 print("tol", tol)
+
+
+
+# E_A = FUSION_ALPHA_PARTICLE_ENERGY
+# m_A = ALPHA_PARTICLE_MASS
+# q_A = ALPHA_PARTICLE_CHARGE
+# R_A = 1.7
+# B_A = 5.86
+
+# m_N = ALPHA_PARTICLE_MASS
+# q_N = ALPHA_PARTICLE_CHARGE
+# R_N = minor_radius(souter)
+# B_N = meanb
+
+# E_N = (q_N/q_A)**2 * (B_N/B_A)**2 * (R_N/R_A)**2 * (m_A/m_N) * E_A
+
+# print(f"particle energy scaled to {E_N/ONE_EV}eV", flush=True)
+
 def trace_particles(bfield, label, mode='gc_vac'):
     t1 = time.time()
     gc_tys, gc_phi_hits = trace_particles_starting_on_surface(
@@ -208,7 +220,6 @@ def trace_particles(bfield, label, mode='gc_vac'):
         # plot_poincare_data(gc_phi_hits, phis, f'/tmp/poincare_particle_{label}_loss.png', mark_lost=True)
         # plot_poincare_data(gc_phi_hits, phis, f'/tmp/poincare_particle_{label}.png', mark_lost=False)
     return gc_tys 
-
 
 
 def compute_error_on_surface(s):

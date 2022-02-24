@@ -277,3 +277,26 @@ def get_outdir(well, idx):
         ]
     return outdirs[idx]
 
+
+def minor_radius(surface):
+    # see explanation for Surface.aspect_ratio in https://github.com/hiddenSymmetries/simsopt/blob/master/src/simsopt/geo/surface.py
+    xyz = surface.gamma()
+    x2y2 = xyz[:, :, 0]**2 + xyz[:, :, 1]**2
+    dgamma1 = surface.gammadash1()
+    dgamma2 = surface.gammadash2()
+
+    # compute the average cross sectional area
+    J = np.zeros((xyz.shape[0], xyz.shape[1], 2, 2))
+    J[:, :, 0, 0] = (xyz[:, :, 0] * dgamma1[:, :, 1] - xyz[:, :, 1] * dgamma1[:, :, 0])/x2y2
+    J[:, :, 0, 1] = (xyz[:, :, 0] * dgamma2[:, :, 1] - xyz[:, :, 1] * dgamma2[:, :, 0])/x2y2
+    J[:, :, 1, 0] = 0.
+    J[:, :, 1, 1] = 1.
+
+    detJ = np.linalg.det(J)
+    Jinv = np.linalg.inv(J)
+
+    dZ_dtheta = dgamma1[:, :, 2] * Jinv[:, :, 0, 1] + dgamma2[:, :, 2] * Jinv[:, :, 1, 1]
+    mean_cross_sectional_area = np.abs(np.mean(np.sqrt(x2y2) * dZ_dtheta * detJ))/(2 * np.pi)
+
+    R_minor = np.sqrt(mean_cross_sectional_area / np.pi)
+    return R_minor
