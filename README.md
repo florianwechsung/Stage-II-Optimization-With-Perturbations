@@ -5,7 +5,7 @@ This repository contains code to accompany the manuscript
 
 - *A-posteriori optimization for increasing manufacturing tolerances in stellarator coil design*, Florian Wechsung, Andrew Giuliani, Matt Landreman, Antoine Cerfon, Georg Stadler
 
-Context:
+## Context
 
 In 
 
