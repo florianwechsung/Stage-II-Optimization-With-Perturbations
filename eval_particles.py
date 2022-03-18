@@ -95,14 +95,14 @@ if sampleidx is not None:
 #souter = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 souter = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+    mpol=16, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 #souter = SurfaceRZFourier(
 #    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 souter.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_1.0.npy")
 #sinner = SurfaceXYZTensorFourier(
 #    mpol=mpol, ntor=ntor, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner = SurfaceRZFourier(
-    mpol=32, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
+    mpol=16, ntor=32, stellsym=False, nfp=1, quadpoints_phi=phis, quadpoints_theta=thetas)
 #sinner = SurfaceRZFourier(
 #    mpol=32, ntor=32, stellsym=stellsym, nfp=nfp, quadpoints_phi=phis, quadpoints_theta=thetas)
 sinner.x = np.load("qfmsurfaces/" + qfmfilename + f"_flux_0.{args.spawnidx}.npy")

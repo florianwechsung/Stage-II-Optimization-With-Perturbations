@@ -43,9 +43,9 @@ outdir = get_outdir(args.well, args.outdiridx)
 
 initial_guess = None
 if not args.well:
-    initial_guess = f"qfmsurfaces/output_well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
+    initial_guess = f"qfmsurfacesdet/output_well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
 else:
-    initial_guess = f"qfmsurfaces/output_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
+    initial_guess = f"qfmsurfacesdet/output_well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_5_order_16_alstart_0_expquad_qfm_flux_{args.flux}.npy"
 
 fil = 0
 nfp = 2
@@ -67,32 +67,11 @@ else:
 
 
 # sq = SurfaceRZFourier(mpol=mpol+13, ntor=ntor+13, nfp=nfp, stellsym=True, quadpoints_phi=phis, quadpoints_theta=thetas)
-if not args.sym:
-    phis = np.linspace(0, 1., nphi, endpoint=False)
-    thetas = np.linspace(0, 1., ntheta, endpoint=False)
-    sq = SurfaceRZFourier(mpol=32, ntor=32, nfp=1, stellsym=False, quadpoints_phi=phis, quadpoints_theta=thetas)
-    if initial_guess is None:
-        s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
-        for m in range(0, 6):
-            for n in range(-5, 6):
-                sq.set_rc(m, 2*n, s.get_rc(m, n))
-                # sq.set_rc(m, n, s.get_rc(m, n))
-                # sq.set_rs(m, n, s.get_rs(m, n))
-                # sq.set_zc(m, n, s.get_zc(m, n))
-                sq.set_zs(m, 2*n, s.get_zs(m, n))
-                # sq.set_zs(m, n, s.get_zs(m, n))
-    else:
-        s = SurfaceRZFourier(mpol=16, ntor=16, nfp=2, stellsym=True)
-        s.x = np.load(initial_guess)
-        for m in range(0, 17):
-            for n in range(-16, 17):
-                sq.set_rc(m, 2*n, s.get_rc(m, n))
-                sq.set_zs(m, 2*n, s.get_zs(m, n))
-else:
+if args.sym or sampleidx is None:
     phis = np.linspace(0, 1./4, nphi, endpoint=False)
     phis += phis[0]/2
     thetas = np.linspace(0, 1., ntheta, endpoint=False)
-    sq = SurfaceRZFourier(mpol=32, ntor=32, nfp=2, stellsym=True, quadpoints_phi=phis, quadpoints_theta=thetas)
+    sq = SurfaceRZFourier(mpol=16, ntor=16, nfp=2, stellsym=True, quadpoints_phi=phis, quadpoints_theta=thetas)
     if initial_guess is None:
         s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
         for m in range(0, 6):
@@ -110,6 +89,27 @@ else:
             for n in range(-16, 17):
                 sq.set_rc(m, n, s.get_rc(m, n))
                 sq.set_zs(m, n, s.get_zs(m, n))
+else:
+    phis = np.linspace(0, 1., nphi, endpoint=False)
+    thetas = np.linspace(0, 1., ntheta, endpoint=False)
+    sq = SurfaceRZFourier(mpol=16, ntor=32, nfp=1, stellsym=False, quadpoints_phi=phis, quadpoints_theta=thetas)
+    if initial_guess is None:
+        s = SurfaceRZFourier.from_vmec_input(filename, quadpoints_phi=phis, quadpoints_theta=thetas)
+        for m in range(0, 6):
+            for n in range(-5, 6):
+                sq.set_rc(m, 2*n, s.get_rc(m, n))
+                # sq.set_rc(m, n, s.get_rc(m, n))
+                # sq.set_rs(m, n, s.get_rs(m, n))
+                # sq.set_zc(m, n, s.get_zc(m, n))
+                sq.set_zs(m, 2*n, s.get_zs(m, n))
+                # sq.set_zs(m, n, s.get_zs(m, n))
+    else:
+        s = SurfaceRZFourier(mpol=16, ntor=16, nfp=2, stellsym=True)
+        s.x = np.load(initial_guess)
+        for m in range(0, 17):
+            for n in range(-16, 17):
+                sq.set_rc(m, 2*n, s.get_rc(m, n))
+                sq.set_zs(m, 2*n, s.get_zs(m, n))
 
 
 
@@ -129,11 +129,12 @@ if (sampleidx is not None) and args.correctionlevel > 0:
 
 
 
-outname = outdir + f"qfm_flux_{args.flux}"
+outname = outdir.replace("/", "_") + f"qfm"
 if sampleidx is not None:
     outname += f"_sampleidx_{sampleidx}"
     outname += f"_sigma_{sigma}"
     outname += f"_correctionlevel_{args.correctionlevel}"
+outname += f"_flux_{args.flux}"
 
 ar = Area(sq)
 ar_target = ar.J()

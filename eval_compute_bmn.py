@@ -66,10 +66,10 @@ else:
     # ntor = 16
 
     mpol = 10
-    ntor = 24
+    ntor = 32
 
-    nphi = 2*ntor + 1
-    ntheta = 2*mpol + 1
+    nphi = int(1.5*(2*ntor + 1))
+    ntheta = int(1.5*(2*mpol + 1))
     phis = np.linspace(0, 1., nphi, endpoint=False)
     thetas = np.linspace(0, 1., ntheta, endpoint=False)
 
@@ -144,11 +144,11 @@ for i, tf_target in enumerate(tf_targets):
     boozer_surface = BoozerSurface(bs, s, tf, tf_target)
     if i > 0:
         s.scale(tf_target/tf_targets[i-1])
-        # res = boozer_surface.minimize_boozer_penalty_constraints_LBFGS(
-        #     tol=1e-10, maxiter=200, constraint_weight=100., iota=res['iota'], G=res['G'])
-        # print(f"After LBFGS:   iota={res['iota']:.3f}, tf={tf.J():.3f}, area={s.area():.3f}, ||residual||={np.linalg.norm(boozer_surface_residual(s, res['iota'], res['G'], bs, derivatives=0)):.3e}")
+        res = boozer_surface.minimize_boozer_penalty_constraints_LBFGS(
+            tol=1e-10, maxiter=20, constraint_weight=100., iota=res['iota'], G=res['G'])
+        print(f"After LBFGS:   iota={res['iota']:.3f}, tf={tf.J():.3f}, area={s.area():.3f}, ||residual||={np.linalg.norm(boozer_surface_residual(s, res['iota'], res['G'], bs, derivatives=0)):.3e}")
     res = boozer_surface.minimize_boozer_penalty_constraints_ls(
-        tol=1e-10, maxiter=100, constraint_weight=100., iota=res['iota'], G=res['G'], method='manual')
+        tol=1e-9, maxiter=100, constraint_weight=100., iota=res['iota'], G=res['G'], method='manual')
     print(f"After Lev-Mar: iota={res['iota']:.3f}, tf={tf.J():.3f}, area={s.area():.3f}, ||residual||={np.linalg.norm(boozer_surface_residual(s, res['iota'], res['G'], bs, derivatives=0)):.3e}")
     # res = boozer_surface.solve_residual_equation_exactly_newton(
     #     tol=1e-11, maxiter=100, iota=res['iota'], G=res['G'])
@@ -207,10 +207,10 @@ print("non_qss", non_qss)
 
 outname = "qsmeasures/" + outdir.replace("/", "_") + f"qsmeasures_sigma_{args.sigma}"
 if sampleidx is not None:
-    outname += f"_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}"
+    outname += f"_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}_ls_10_32"
 import os
 os.makedirs("qsmeasures", exist_ok=True)
-np.savetxt(outname, np.asarray([tf_ratios, bmns, non_qss]).T, delimiter=",", header="flux,maxbmn,nonqsnorm", comments="")
+np.savetxt(outname + ".txt", np.asarray([tf_ratios, bmns, non_qss]).T, delimiter=",", header="flux,maxbmn,nonqsnorm", comments="")
 # import IPython; IPython.embed()
 import sys; sys.exit()
 import matplotlib.pyplot as plt
