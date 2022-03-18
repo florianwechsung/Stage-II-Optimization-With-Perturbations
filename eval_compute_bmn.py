@@ -60,14 +60,8 @@ else:
     nfp = 1
     stellsym = False
 
-    # mpol = 5
-    # ntor = 16
-    # mpol = 10
-    # ntor = 16
-
     mpol = 10
     ntor = 32
-
     nphi = int(1.5*(2*ntor + 1))
     ntheta = int(1.5*(2*mpol + 1))
     phis = np.linspace(0, 1., nphi, endpoint=False)
@@ -205,7 +199,7 @@ non_qss = non_qss/b00s[-1]
 print("bmns", bmns)
 print("non_qss", non_qss)
 
-outname = "qsmeasures/" + outdir.replace("/", "_") + f"qsmeasures_sigma_{args.sigma}"
+outname = "qsmeasures/" + outdir.replace("/", "_") + f"qsmeasures"
 if sampleidx is not None:
     outname += f"_sampleidx_{sampleidx}_correctionlevel_{args.correctionlevel}_ls_10_32"
 import os

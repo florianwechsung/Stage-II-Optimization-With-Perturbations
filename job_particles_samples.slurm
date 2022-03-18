@@ -30,7 +30,7 @@ mkdir -p output
 WELL="--well"
 SIDX=$SLURM_ARRAY_TASK_ID
 
-# run with sbatch --array=0-63 job_particles_samples.slurm
+# run with sbatch --array=0-127 job_particles_samples.slurm
 
 #for OUTDIRIDX in 3; do
 #    for SIGMA in 1e-3; do
@@ -40,7 +40,6 @@ SIDX=$SLURM_ARRAY_TASK_ID
 #    done
 #done
  
-#for OUTDIRIDX in 2 3 6 7; do
 
 
 #for OUTDIRIDX in 0 1 2 3; do

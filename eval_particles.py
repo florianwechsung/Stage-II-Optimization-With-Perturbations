@@ -189,22 +189,6 @@ tol = 1e-11
 print("tol", tol)
 
 
-
-# E_A = FUSION_ALPHA_PARTICLE_ENERGY
-# m_A = ALPHA_PARTICLE_MASS
-# q_A = ALPHA_PARTICLE_CHARGE
-# R_A = 1.7
-# B_A = 5.86
-
-# m_N = ALPHA_PARTICLE_MASS
-# q_N = ALPHA_PARTICLE_CHARGE
-# R_N = minor_radius(souter)
-# B_N = meanb
-
-# E_N = (q_N/q_A)**2 * (B_N/B_A)**2 * (R_N/R_A)**2 * (m_A/m_N) * E_A
-
-# print(f"particle energy scaled to {E_N/ONE_EV}eV", flush=True)
-
 def trace_particles(bfield, label, mode='gc_vac'):
     t1 = time.time()
     gc_tys, gc_phi_hits = trace_particles_starting_on_surface(

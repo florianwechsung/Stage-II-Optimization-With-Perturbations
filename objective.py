@@ -273,9 +273,37 @@ def get_outdir(well, idx):
             "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_alstart_0_expquad_samples_4096_sigma_0.001/",
             "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_alstart_0_expquad_samples_4096_sigma_0.001/",
             "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_alstart_0_expquad_samples_4096_sigma_0.001_usedetig/",
-
         ]
+
+    # if well:
+    #     outdirs = [
+    #         "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_True_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_noalen_expquad_samples_4096_sigma_0.001_usedetig/",
+    #         "output/well_True_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_0_order_16_noalen_expquad_samples_4096_sigma_0.001_usedetig/",
+    #         "output/well_True_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_2_order_16_noalen_expquad_samples_4096_sigma_0.001_usedetig/",
+    #         "output/well_True_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad_samples_4096_sigma_0.001/",
+    #     ]
+    # else:
+
+    #     outdirs = [
+    #         "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_3_order_16_noalen_expquad/",
+    #         "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_7_order_16_noalen_expquad/",
+    #         "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_3_order_16_noalen_expquad/",
+    #         "output/well_False_lengthbound_18.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_3_order_16_noalen_expquad_samples_4096_sigma_0.001_usedetig/",
+    #         "output/well_False_lengthbound_20.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_1_order_16_noalen_expquad_samples_4096_sigma_0.001/",
+    #         "output/well_False_lengthbound_22.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_4_order_16_noalen_expquad_samples_4096_sigma_0.001/",
+    #         "output/well_False_lengthbound_24.0_kap_5.0_msc_5.0_dist_0.1_fil_0_ig_6_order_16_noalen_expquad_samples_4096_sigma_0.001/",
+    #     ]
+
+
+
+
     return outdirs[idx]
+
 
 
 def minor_radius(surface):

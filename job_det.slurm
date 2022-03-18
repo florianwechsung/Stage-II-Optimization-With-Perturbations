@@ -24,7 +24,7 @@ source /scratch/fw18/stochastic-stage-two/bin/activate
 
 
 
-# run with sbatch --array=0-7 jobdet.slurm
+# run with sbatch --array=0-7 job_det.slurm
 
 IG=$SLURM_ARRAY_TASK_ID
 
@@ -34,8 +34,7 @@ ORDER=16
 #MAXL=18
 #MAXL=20
 #MAXL=22
-#MAXL=24
-MAXL=26
+MAXL=24
 
 mkdir -p logs
 mkdir -p output
@@ -43,6 +42,6 @@ mkdir -p output
 python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --noalen
 python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --noalen
 python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 0
-python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1
 python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 0
-python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1
+#python3 driver.py --well --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1
+#python3 driver.py        --lengthbound ${MAXL} --fil 0 --ig ${IG} --nsamples 0 --mindist 0.10 --maxkappa 5 --maxmsc 5 --order ${ORDER} --expquad --alstart 1

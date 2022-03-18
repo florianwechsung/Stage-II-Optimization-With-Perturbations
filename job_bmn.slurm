@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=bmnqfm
+#SBATCH --job-name=bmn
 #SBATCH --output=logs/slurm_bmn_%A_%a.out
 #SBATCH --error=logs/slurm_bmn_%A_%a.err
 #SBATCH -p cs
@@ -28,41 +28,20 @@ mkdir -p output
 WELL="--well"
 SIDX=`expr $SLURM_ARRAY_TASK_ID - 1`
 
-# run with sbatch --array=0-64 job_bmn.slurm
+# run with sbatch --array=0-128 job_bmn.slurm
 
-#for OUTDIRIDX in 0 1 2 3; do
-#    for SIGMA in 1e-3; do
-#        for CL in 0 1 2 3; do
-#            python3 eval_compute_bmn.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL
-#        done
-#    done
-#done
-
-#for OUTDIRIDX in 4 5 6 7; do
-#    for SIGMA in 1e-3; do
-#        for CL in 0; do
-#            python3 eval_compute_bmn.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL
-#        done
-#    done
-#done
-
-for OUTDIRIDX in 3; do
+for OUTDIRIDX in 0 1 2 3; do
     for SIGMA in 1e-3; do
-        for CL in 1 2 3; do
-            python3 eval_compute_qfm.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL --flux 0.25
-            python3 eval_compute_qfm.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL --flux 1.0
+        for CL in 0 1 2 3; do
+            python3 eval_compute_bmn.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL
         done
     done
 done
 
- 
-
-#for OUTDIRIDX in 0 1 2 3 4 5 6 7; do
-#    for SIGMA in 1e-3; do
-#        for CL in 0; do
-#            python3 eval_compute_qfm.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL --flux 0.25
-#            python3 eval_compute_qfm.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL --flux 1.0
-#        done
-#    done
-#done
-# 
+for OUTDIRIDX in 4 5 6 7; do
+    for SIGMA in 1e-3; do
+        for CL in 0; do
+            python3 eval_compute_bmn.py  $WELL  --outdiridx $OUTDIRIDX --sampleidx $SIDX --sigma $SIGMA --correctionlevel $CL
+        done
+    done
+done

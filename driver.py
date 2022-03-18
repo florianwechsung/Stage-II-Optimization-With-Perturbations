@@ -6,7 +6,7 @@ from simsopt.field.biotsavart import BiotSavart
 from simsopt.field.coil import Current
 from simsopt.geo.curveobjectives import CurveLength
 from simsopt.geo.curveobjectives import MinimumDistance, LpCurveCurvature
-from objective import create_curves, QuadraticCurveLength, UniformArclength, MeanSquareCurvature
+from objective import create_curves, add_correction_to_coils, get_outdir
 from scipy.optimize import minimize
 import argparse
 import os
@@ -28,17 +28,17 @@ logger.propagate = False
 parser = argparse.ArgumentParser()
 parser.add_argument("--fil", type=int, default=0)
 parser.add_argument("--ig", type=int, default=0)
-parser.add_argument("--order", type=int, default=12)
+parser.add_argument("--order", type=int, default=16)
 parser.add_argument("--nsamples", type=int, default=0)
 parser.add_argument("--sigma", type=float, default=0.001)
 parser.add_argument("--lengthbound", type=float, default=18.)
 parser.add_argument("--mindist", type=float, default=0.10)
-parser.add_argument("--maxkappa", type=float, default=7.0)
+parser.add_argument("--maxkappa", type=float, default=5.0)
 parser.add_argument("--well", dest="well", default=False, action="store_true")
 parser.add_argument("--zeromean", dest="zeromean", default=False, action="store_true")
 parser.add_argument("--usedetig", dest="usedetig", default=False, action="store_true")
 parser.add_argument("--noalen", dest="noalen", default=False, action="store_true")
-parser.add_argument("--maxmsc", type=float, default=6)
+parser.add_argument("--maxmsc", type=float, default=5.0)
 parser.add_argument("--expquad", dest="expquad", default=False, action="store_true")
 parser.add_argument("--glob", dest="glob", default=False, action="store_true")
 parser.add_argument("--fixcurrents", dest="fixcurrents", default=False, action="store_true")
